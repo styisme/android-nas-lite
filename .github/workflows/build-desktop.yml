@@ -1,0 +1,68 @@
+name: Build Desktop Client
+
+on:
+  push:
+    branches: [ main, master ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
+      - '.gitignore'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact_name: nas-client-linux
+            target: gui
+          - os: windows-latest
+            artifact_name: nas-client-windows
+            target: gui
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Auto Sync Version
+        run: python sync_version.py
+
+      - name: Get Version
+        id: get_version
+        shell: bash
+        run: |
+          VERSION=$(grep -oP '##\s*\[?v?\K\d+\.\d+\.\d+' CHANGELOG.md | head -1)
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install 'requests>=2.28,<3' 'pyinstaller>=5.13,<6'
+
+      # ================= 桌面端打包 =================
+      - name: Build GUI (Windows)
+        if: matrix.os == 'windows-latest' && matrix.target == 'gui'
+        working-directory: ./desktop
+        run: pyinstaller -F -w nas_client.py -n nas-client-windows-v${{ env.VERSION }}
+
+      - name: Build GUI (Linux)
+        if: matrix.os == 'ubuntu-latest' && matrix.target == 'gui'
+        working-directory: ./desktop
+        run: pyinstaller -F -w nas_client.py -n nas-client-linux-v${{ env.VERSION }}
+
+      # ================= 上传产物 =================
+      - name: Upload GUI Artifact
+        if: matrix.target == 'gui'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: desktop/dist/*
+

@@ -1,0 +1,72 @@
+name: Build Server APK
+
+on:
+  push:
+    branches: [ main, master ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
+      - '.gitignore'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17 (for sdkmanager)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # #63: packages 用换行分隔，避免被当成单个包名
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: ''
+
+      - name: Install required SDK packages
+        run: |
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          sdkmanager "platforms;android-30" "build-tools;30.0.3" "platform-tools"
+
+
+      - name: Set up JDK 8
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '8'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Auto Sync Version
+        run: python sync_version.py
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Clean stale caches
+        run: |
+          rm -rf ~/.gradle/caches/transforms-* || true
+          rm -rf app/build build || true
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Rename APK with Version
+        run: |
+          VERSION=$(grep -oP '##\s*\[?v?\K\d+\.\d+\.\d+' CHANGELOG.md | head -1)
+          mv app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/android-nas-server-v${VERSION}.apk || true
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-nas-server
+          path: app/build/outputs/apk/debug/*.apk
