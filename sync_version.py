@@ -13,7 +13,7 @@ def get_latest_version():
         print("[ERROR] Cannot find CHANGELOG.md"); return None, None
     with open(CHANGELOG_PATH, "r", encoding="utf-8") as f:
         content = f.read()
-    match = re.search(r'##\s*\[?v?(\d+\.\d+\.\d+)\]?', content)
+    match = re.search(r'##\s*\[?v?([0-9a-zA-Z\.-]+)\]?', content)
     if not match:
         print("[ERROR] No version found in CHANGELOG.md"); return None, None
     version_name = match.group(1)
