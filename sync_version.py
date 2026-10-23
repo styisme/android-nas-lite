@@ -17,7 +17,9 @@ def get_latest_version():
     if not match:
         print("[ERROR] No version found in CHANGELOG.md"); return None, None
     version_name = match.group(1)
-    parts = version_name.split('.')
+    # 剥离可能存在的 -lite.x 后缀，只保留纯 x.y.z 计算数字版本号
+    pure_version = version_name.split('-')[0]
+    parts = pure_version.split('.')
     version_code = str(int(parts[0]) * 10000 + int(parts[1]) * 100 + int(parts[2]))
     return version_name, version_code
 
