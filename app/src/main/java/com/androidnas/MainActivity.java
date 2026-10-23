@@ -361,7 +361,6 @@ public class MainActivity extends Activity {
         String ip = getIpAddress();
         String text = "核心访问: http://" + ip + ":" + SettingsManager.getWebPort();
         if (SettingsManager.isLowPowerMode()) text += "\n❄️ 极寒模式运行中";
-        if (FreeTunnelManager.isRunning() && !FreeTunnelManager.getPublicUrl().isEmpty()) text += "\n公网映射: " + FreeTunnelManager.getPublicUrl();
         if (!HttpServerService.lastError.isEmpty()) text += "\n⚠️ " + HttpServerService.lastError;
         ipView.setText(text);
     }
