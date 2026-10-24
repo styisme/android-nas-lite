@@ -221,10 +221,48 @@ jobs:
         run: |
           VERSION=$(grep -oP '##\s*\[?v?\K[0-9a-zA-Z\.-]+' CHANGELOG.md | head -1)
           
-          # 提取最新的更新日志部分（从最新的 ## [ 开始，到下一个 ## [ 结束）
           awk '/^## \[/{count++} count==1{print}' CHANGELOG.md | tail -n +2 > changelog_body.md
           
           cat << EOF > release_notes.md
+          ## 👑 Android NAS Lite v${VERSION} 正式发布！
+          
+          **把吃灰的 Android 手机变成一个干净、稳定、可长期挂机的局域网文件服务器。**
+          
+          这是 Android NAS 的精简版，基于完整版剥离了高风险与低使用率功能，只保留最核心的文件服务。
+          
+          ---
+          
+          ### 🚀 核心更新亮点
+          EOF
+          
+          cat changelog_body.md >> release_notes.md
+          
+          cat << EOF >> release_notes.md
+          
+          ---
+          
+          ### 📦 安装包下载指南 (Assets)
+          
+          请直接点击下方对应的文件下载（所有端版本号均已同步）：
+          
+          - 📱 **服务端 (旧手机)**：`AndroidNAS-Server-v${VERSION}.apk`
+          - 🖥️ **手机客户端 (主力机)**：`AndroidNAS-Client-v${VERSION}.apk`
+          - 📺 **TV 电视端**：`AndroidNAS-TV-v${VERSION}.apk`
+          - 💻 **Windows GUI**：`AndroidNAS-Desktop-Windows-v${VERSION}.exe`
+          - 🐧 **Linux GUI**：`AndroidNAS-Desktop-Linux-v${VERSION}`
+          
+          ---
+          
+          ### ⚠️ 安全提示
+          
+          1. **明文传输**：局域网默认明文 HTTP。请勿将端口直接暴露公网，公网访问请自行配置 TLS 穿透。
+          2. **账号限制**：系统仅保留 `admin` 与 `guest` 双账号。
+          3. **保活边界**：Lite 版不包含激进保活。若掉线请将应用设为“无限制”。
+          
+          ---
+          
+          **Enjoy your personal cloud! 如果觉得项目对你有帮助，欢迎点一个 ⭐ Star！**
+          EOF > release_notes.md
           ## 👑 Android NAS v${VERSION} 正式发布！
           
           **十端生态矩阵：全平台私有云控制中枢**
