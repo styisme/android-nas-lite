@@ -11,17 +11,16 @@ android {
 
     defaultConfig {
         applicationId "com.androidnas.lite.server"
-        // 核心修复：恢复极限兼容 API 8
         minSdkVersion 8
         targetSdkVersion 22
-        versionCode 20100
-        versionName "2.1.0"
+        versionCode 40200
+        versionName "4.2.0-lite.1"
     }
 
-        signingConfigs {
+    signingConfigs {
         release {
             def ksPath = System.getenv("NAS_KEYSTORE_PATH")
-            if (ksPath) {
+            if (ksPath && file(ksPath).exists()) {
                 storeFile file(ksPath)
                 storePassword System.getenv("NAS_KEYSTORE_PASSWORD")
                 keyAlias System.getenv("NAS_KEY_ALIAS")
@@ -34,7 +33,7 @@ android {
             applicationIdSuffix ".debug"
         }
         release {
-            if (System.getenv("NAS_KEYSTORE_PATH")) {
+            if (System.getenv("NAS_KEYSTORE_PATH") && file(System.getenv("NAS_KEYSTORE_PATH")).exists()) {
                 signingConfig signingConfigs.release
             } else {
                 signingConfig signingConfigs.debug
@@ -52,4 +51,4 @@ android {
 
 dependencies {
     implementation 'org.nanohttpd:nanohttpd:2.2.0'
-                }
+}
