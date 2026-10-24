@@ -23,8 +23,8 @@ public class DatabaseManager extends SQLiteOpenHelper {
     @Override public void onCreate(SQLiteDatabase db) {
         db.execSQL("CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, password TEXT, role INTEGER, root_dir TEXT)");
         db.execSQL("CREATE TABLE file_hashes (hash TEXT PRIMARY KEY, path TEXT)");
-        db.execSQL("INSERT INTO users (username, password, role, root_dir) VALUES ('admin', 'admin', 1, '/')");
-        db.execSQL("INSERT INTO users (username, password, role, root_dir) VALUES ('guest', 'guest', 2, '/Public')");
+        db.execSQL("INSERT INTO users (username, password, role, root_dir) VALUES ('admin', 'admin', 1, '')");
+        db.execSQL("INSERT INTO users (username, password, role, root_dir) VALUES ('guest', 'guest', 2, 'Public')");
     }
 
     @Override public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {}
@@ -42,52 +42,46 @@ public class DatabaseManager extends SQLiteOpenHelper {
     }
 
     public String getUserRoot(String user) {
+        if (user == null) return "";
         SQLiteDatabase db = getReadableDatabase();
         Cursor c = db.rawQuery("SELECT root_dir FROM users WHERE username=?", new String[]{user});
-        String root = "/";
+        String root = "";
         if (c.moveToFirst()) root = c.getString(0);
         c.close();
-        return root;
+        return root.replaceAll("^/+", "");
     }
 
     public void saveHash(String hash, String path) {
+        if (hash == null || path == null) return;
         ContentValues cv = new ContentValues();
         cv.put("hash", hash);
         cv.put("path", path);
         getWritableDatabase().insertWithOnConflict("file_hashes", null, cv, SQLiteDatabase.CONFLICT_REPLACE);
     }
 
-    public String getPathByHash(String hash) {
+    public String getPathByHash(String hash, String userRoot) {
+        if (hash == null) return null;
         SQLiteDatabase db = getReadableDatabase();
-        Cursor c = db.rawQuery("SELECT path FROM file_hashes WHERE hash=?", new String[]{hash});
+        String query = "SELECT path FROM file_hashes WHERE hash=?";
+        String[] args;
+        if (userRoot == null || userRoot.isEmpty()) {
+            query += " AND path NOT LIKE '/Public/%'";
+            args = new String[]{hash};
+        } else {
+            query += " AND path LIKE ?";
+            args = new String[]{hash, "%/" + userRoot + "/%"};
+        }
+        Cursor c = db.rawQuery(query, args);
         String path = null;
         if (c.moveToFirst()) path = c.getString(0);
         c.close();
         return path;
     }
 
-    public boolean addUser(String user, String pass, int role, String root) {
-        try {
-            getWritableDatabase().execSQL("INSERT INTO users (username, password, role, root_dir) VALUES (?, ?, ?, ?)", new Object[]{user, pass, role, root});
-            return true;
-        } catch (Exception e) { return false; }
-    }
-
-    public String getAllUsersJson() {
-        Cursor c = getReadableDatabase().rawQuery("SELECT id, username, role, root_dir FROM users", null);
-        StringBuilder sb = new StringBuilder("[");
-        boolean first = true;
-        while (c.moveToNext()) {
-            if (!first) sb.append(",");
-            sb.append("{\"id\":").append(c.getInt(0))
-              .append(",\"user\":\"").append(c.getString(1)).append("\"")
-              .append(",\"role\":").append(c.getInt(2))
-              .append(",\"root\":\"").append(c.getString(3)).append("\"}");
-            first = false;
-        }
-        c.close();
-        sb.append("]");
-        return sb.toString();
+    public void changePassword(String user, String newPass) {
+        ContentValues cv = new ContentValues();
+        cv.put("password", newPass);
+        getWritableDatabase().update("users", cv, "username=?", new String[]{user});
     }
 
     public static String md5(String input) {

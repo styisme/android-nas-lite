@@ -136,7 +136,7 @@ public class FtpServer extends Thread {
             }
         }
 
-        private void reply(String msg) { writer.println(msg); }
+        private void reply(String msg) { writer.print(msg + "\r\n"); writer.flush(); }
 
         private void enterPassiveMode() {
             try {

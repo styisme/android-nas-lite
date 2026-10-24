@@ -6,7 +6,6 @@ import java.net.URL;
 import java.net.URLEncoder;
 
 public class WebhookManager {
-    
     public static void send(final String event, final String detail) {
         final String url = SettingsManager.getWebhookUrl();
         if (url == null || url.trim().isEmpty()) return;
@@ -16,7 +15,6 @@ public class WebhookManager {
             public void run() {
                 try {
                     String payload = "{\"event\":\"" + event + "\",\"detail\":\"" + detail + "\",\"device\":\"" + SettingsManager.getDeviceAlias() + "\"}";
-                    // 针对 Telegram 和企业微信做简单适配
                     if (url.contains("telegram.org")) {
                         payload = "chat_id=" + SettingsManager.getWebhookChatId() + "&text=" + URLEncoder.encode("【NAS通知】\n事件: " + event + "\n详情: " + detail, "UTF-8");
                     } else if (url.contains("qyapi.weixin.qq.com")) {

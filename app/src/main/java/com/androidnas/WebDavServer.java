@@ -74,7 +74,7 @@ public class WebDavServer extends Thread {
                     }
                 }
 
-                File target = new File(rootDir, uri);
+                File target = new File(rootDir, uri.replaceAll("^/+", ""));
                 if (!SettingsManager.isGlobalMode()) {
                     String tc = target.getCanonicalPath();
                     String rc = new File(rootDir).getCanonicalPath();

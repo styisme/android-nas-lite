@@ -14,7 +14,7 @@
 
 ---
 
-## 📂 项目结构解析 (v4.2.0-lite 架构)
+## 📂 项目结构解析 (v4.3.0-lite 架构)
 
 Lite 版移除了独立端点与高危模块，当前保留 5 个核心端：
 
@@ -27,6 +27,7 @@ android-nas-lite/
 │   │   ├── NasHttpServer.java           # 核心 HTTP 引擎 (含 PWA 路由、断点续传)
 │   │   ├── WebDavServer.java            # 纯 Socket 实现的 WebDAV 协议栈
 │   │   ├── FtpServer.java               # 纯 Socket 实现的 FTP 协议栈
+│   │   ├── AuthManager.java             # ThreadLocal 并发隔离与鉴权拦截
 │   │   ├── DatabaseManager.java         # SQLite 账号与秒传记录引擎
 │   │   ├── WebhookManager.java          # Webhook 事件推送引擎
 │   │   ├── SettingsManager.java         # 偏好设置管理
@@ -64,16 +65,18 @@ android-nas-lite/
 
 Lite 版高度依赖 HTTP，所有端的网络层必须严格遵守以下规范（完整细节请见 `docs/API_DOC.md`）。
 
-### 1. 统一鉴权与沙箱隔离
+### 1. 统一鉴权与并发沙箱隔离 (v4.3.0 核心重构)
 除分享链接与 Webhook 外，所有 HTTP 请求必须携带 Header：
 `Authorization: Basic Base64(账号:密码)`。
-- **底层拦截**：`NasHttpServer.safeFile()` 会从 SQLite 中读取当前用户的 `root_dir`。
+- **`ThreadLocal` 身份隔离**：`AuthManager` 底层废弃了全局静态变量，在 `verifyRole` 时写入 `ThreadLocal`，并在请求结束的 `finally` 块中强制调用 `clearCurrentUser()` 清理。
+- **强制路径校验**：`NasHttpServer.safeFile()` 会从 SQLite 读取 `root_dir`，强制剥离前导斜杠，并利用 `getCanonicalPath` 校验，杜绝 `../` 越权。
 - **权限边界**：系统仅保留 `admin`（拥有全部存储读写权限）与 `guest`（被严格锁定在 `/Public` 目录）。
 - **全盘模式已移除**：`SettingsManager.isGlobalMode()` 永远返回 `false`，无法越权访问底层目录。
 
 ### 2. 文件流式上传与大文件断点续传 (极重要)
 - **小文件 PUT 上传**：必须携带准确的 `Content-Length`。禁止使用 `Transfer-Encoding: chunked`，否则会导致 NanoHTTPD 底层无限阻塞卡死。
-- **大文件分片上传**：前端通过 `File.slice()` 按 2MB 切块，携带 `hash`、`index`、`total` 请求 `/api/upload/chunk`。服务端利用 `FileOutputStream(..., true)` 实现流式追加合并，并利用 `synchronized` 解决并发冲突。
+- **大文件分片上传**：前端通过 `File.slice()` 按 2MB 切块，携带 `hash`、`index`、`total` 请求 `/api/upload/chunk`。
+- **流处理修复**：分片上传接口中**严禁**调用 `session.parseBody()`，以避免二进制数据流被 NanoHTTPD 提前拦截消费。服务端统一利用 `FileOutputStream(..., true)` 将流追加至带 Hash 后缀的临时文件，并利用 `synchronized` 解决并发合并冲突。
 
 ### 3. Webhook 与 PWA 路由
 - **PWA**：`NasHttpServer` 需拦截 `/manifest.json` 与 `/sw.js` 请求，并从 `assets` 目录流式返回。
@@ -91,11 +94,14 @@ Lite 版高度依赖 HTTP，所有端的网络层必须严格遵守以下规范�
 Lite 版采用跟随式发版机制，发版过程全自动化：
 
 1. **同步并精简代码**：在完整版发布大版本后，重新生成 Lite 版代码。
-2. **修改更新日志**：在 `CHANGELOG.md` 顶部增加新版本号（格式为 `## [4.2.0-lite.1]`）及精简说明。
+2. **修改更新日志**：在 `CHANGELOG.md` 顶部增加新版本号（格式为 `## [4.3.0-lite.1]`）及精简说明。
 3. **推送代码**：Push 到 `main` 或 `master` 分支。
 4. **自动矩阵编译**：GitHub Actions 会检测到 `CHANGELOG.md` 的变更，触发 `build-all.yml`。并行编译 4 个 job（server, client, tv, pc）。
-5. **包名与签名**：Lite 版包名已迁移至 `com.androidnas.lite.*`。日常构建自动加 `.debug` 后缀；全量发版触发 `assembleRelease`，使用 GitHub Secrets 注入 keystore。
-6. **自动打 Tag**：CI 正则支持提取带后缀的版本号（如 `v4.2.0-lite.1`），并自动打上 Git Tag。
+5. **包名与签名**：
+   - Lite 版包名已迁移至 `com.androidnas.lite.*`。
+   - 日常构建自动加 `.debug` 后缀。
+   - 全量发版触发 `assembleRelease`，使用 GitHub Secrets 注入 keystore。*(注：v4.3.0 修复了未配置密钥时 Gradle 误判导致 `Keystore file not found` 崩溃的问题)*。
+6. **自动打 Tag**：CI 正则支持提取带后缀的版本号（如 `v4.3.0-lite.1`），并自动打上 Git Tag。
 7. **平铺直传发布**：CI 脚本使用 `find -type f` 提取产物并重命名，平铺展示在 GitHub Release 页面。
 
 ---

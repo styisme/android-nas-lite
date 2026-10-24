@@ -4,7 +4,7 @@
 
 由于 Lite 版移除了远程控制、多用户管理、多媒体刮削等扩展模块，因此**仅提供完整版 API 的子集**。完整版的全部接口（包括 WebSocket 远控协议）请参阅 [完整版 API 规范](https://github.com/styisme/android-nas/blob/master/docs/API_DOC.md)。
 
-以下是 Lite 版保留的完整接口规范说明（基于 v4.2.0-lite）。
+以下是 Lite 版保留的完整接口规范说明（基于 v4.3.0-lite）。
 
 ---
 
@@ -18,7 +18,10 @@
   - 除分享链接外，所有 HTTP 请求必须携带 Header：`Authorization: Basic Base64(账号:密码)`。
   - Lite 版仅内置 `admin` 与 `guest` 双账号（默认 `admin:admin`）。
   - 鉴权失败将返回 `401 Unauthorized`。
-- **沙箱隔离**：`guest` 账号的路径会被底层强制映射并锁定在 `/Public` 目录内，无法越权访问。
+- **并发安全与沙箱隔离 (v4.3.0 核心升级)**：
+  - 底层使用 `ThreadLocal` 存储当前请求身份，请求结束时在 `finally` 块强制清理，彻底杜绝高并发下的越权串号。
+  - `guest` 账号的路径会被底层强制映射并锁定在 `/Public` 目录内。
+  - 所有路径强制剥离前导斜杠，配合 `getCanonicalPath` 校验，彻底封死目录穿越。
 - **响应格式**：除流媒体下载、纯文本预览外，所有响应均为 JSON 格式。
 
 ---
@@ -51,6 +54,7 @@
 - **Response**:
   - 若携带 Range，返回 `206 Partial Content`，并带有 `Content-Range` 头。
   - 若未携带，返回 `200 OK`，并带有 `Content-Disposition` 触发下载。
+  - **底层安全**：v4.3.0 引入了 `LimitedInputStream`，彻底修复了高并发下的句柄泄漏与越界崩溃。
 
 ### 3. 表单多文件上传 (Web端使用)
 - **URL**: `/api/upload`
@@ -64,16 +68,17 @@
 - **Body**: 纯二进制流 (`application/octet-stream`)。
 - **注意**：客户端必须携带准确的 `Content-Length`。如果服务端写入异常，会触发 Drain 机制并返回明确状态码。
 
-### 5. 大文件秒传与分片上传 (v4.2.0 实装)
+### 5. 大文件秒传与分片上传 (v4.3.0 修复)
 - **秒传校验**:
   - `POST /api/upload/check`
   - Body: `hash=文件MD5`
   - 返回: `SECONDS_UPLOAD:/path/to/file`（秒传成功，服务端已有该文件）或 `NEED_UPLOAD`（需要继续上传）。
+  - **防投毒**：服务端会校验该 Hash 的路径归属，防止跨用户命中。
 - **分片上传**:
   - `POST /api/upload/chunk`
   - Params: `hash=文件MD5`, `index=当前分片序号`, `total=总分片数`, `name=文件名`, `path=目标目录`
   - Body: 纯二进制分片数据（通常为 2MB 块）。
-  - 服务端底层使用 `FileOutputStream(..., true)` 将分片追加至 `.part` 临时文件。当 `index == total - 1` 时，自动合并重命名为正式文件，并触发 Webhook 通知。
+  - **修复说明**：服务端已移除 `parseBody` 调用，避免二进制流被 NanoHTTPD 拦截消费。临时文件命名为 `fileName.hash.part`，彻底防止并发覆盖损坏。
 
 ### 6. 多选流式打包下载
 - **URL**: `/api/download/zip`
@@ -109,14 +114,12 @@
 - **Method**: `POST`
 - **Body**:
   - `path`: 必填，文件路径。
-  - `pass`: 选填，提取码（如 `1234`）。
-  - `expire`: 选填，有效期毫秒数（如 `86400000` 表示 1 天）。
-- **Response**: `200 OK`，返回 8 位随机 Token (如 `abcd1234`)。
+- **Response**: `200 OK`，返回 16 位随机 Token。
+- **底层鉴权**：v4.3.0 中，分享访问会绑定 Token 的所有者（Owner）身份进行沙箱路径解析，并加入了 24 小时强制过期校验。
 
 ### 2. 访问分享
 - **URL**: `/share/{token}`
 - **Method**: `GET`
-- **Params**: 如果有提取码，需携带 `?pass=1234`。
 - **Response**: 校验通过后，返回文件流。
 
 ---
@@ -142,13 +145,14 @@
 - **Method**: `GET`
 - **Response**: `200 OK`，返回最新版本信息，供客户端比对。
 
-### 2. 获取/保存系统配置 (v4.2.0 扩展)
+### 2. 获取/保存系统配置
 - **URL**: `/api/settings`
 - **Method**: `GET` / `POST`
-- **GET Response**: 返回包含 `alias`, `webPort`, `davPort`, `ftpPort`, `webdav`, `ftp`, `stream`, `clipboard`, `lowPower`, 以及 **`webhookUrl`, `webhookChatId`** 的 JSON。*(注：Lite 版移除了 `dlna` 和 `globalMode` 字段)*
+- **权限**：v4.3.0 补齐了严格校验，**仅 `admin` 角色可调用**。
+- **GET Response**: 返回包含 `alias`, `webPort`, `davPort`, `ftpPort`, `webdav`, `ftp`, `stream`, `clipboard`, `lowPower`, `webhookUrl`, `webhookChatId` 的 JSON。
 - **POST Body**: 包含上述字段进行更新。
 
-### 3. Webhook 测试 (v4.2.0 新增)
+### 3. Webhook 测试
 - **URL**: `/api/webhook/test`
 - **Method**: `POST`
 - **Response**: `200 OK`，服务端会立即向已配置的 Webhook URL 发送一条测试通知。
@@ -157,8 +161,9 @@
 - **URL**: `/api/password`
 - **Method**: `POST`
 - **Body**: `password=新密码`
+- **权限**：仅 `admin` 可调用。
 
-### 5. PWA 静态资源 (v4.2.0 新增)
+### 5. PWA 静态资源
 - **URL**: `/manifest.json` / `/sw.js`
 - **Method**: `GET`
 - **Response**: 直接返回 PWA 的配置文件与 Service Worker 脚本，内容由服务端从 `assets` 目录流式读取。

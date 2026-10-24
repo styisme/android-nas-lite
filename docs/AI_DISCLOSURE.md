@@ -11,18 +11,21 @@
 ## AI 参与的具体部分（Lite 版及完整版）
 
 ### 1. 完整版核心业务代码（Lite 版完整继承）
-- **服务端核心**：
-  - `NasHttpServer.java`：路由设计、Range 分片、ZIP 流式解压、大文件分片与秒传合并（`/api/upload/chunk`）、PWA 静态资源路由、路径沙箱拦截。
-  - `WebDavServer.java` / `FtpServer.java`：纯 Socket 协议栈。
-  - `DatabaseManager.java` / `AuthManager.java`：SQLite 鉴权与文件哈希记录。
-  - `WebhookManager.java`：轻量级事件推送中枢（支持 TG / 企微）。
+- **服务端核心安全与架构 (v4.3.0 核心重构)**：
+  - `AuthManager.java`：引入 `ThreadLocal` 存储当前请求身份，废弃全局静态变量，在 `finally` 块强制清理，彻底解决并发越权漏洞。
+  - `DatabaseManager.java`：强制剥离 `root_dir` 前导斜杠，配合 `getCanonicalPath` 封死沙箱逃逸；新增秒传路径校验，防止跨用户投毒。
+  - `NasHttpServer.java`：引入 `LimitedInputStream` 修复视频 Range 请求的句柄泄漏；移除分片上传错误的 `parseBody` 调用；实现短效 Share Token 鉴权。
+  - `WebDavServer.java` / `FtpServer.java`：纯 Socket 协议栈，并在连接关闭时强制执行身份清理。
+  - `WebhookManager.java`：轻量级事件推送中枢。
 - **跨平台客户端**：
   - 手机端（相册自动备份、局域网扫描与投屏）、TV 端（Leanback 卡片流）、桌面端（Tkinter UI 与在线编辑）。
-- **Web 前端**：`index.html` 的全套 MD3 变量系统、SparkMD5 分片计算、PWA `manifest.json` 与 `sw.js`。
-- **CI/CD 自动化**：基于 GitHub Actions 的矩阵编译、基于 Secrets 的 Keystore 签名注入、`sync_version.py` 版本号提取与注入。
+- **Web 前端**：
+  - `index.html` 的全套 MD3 变量系统、SparkMD5 分片计算、PWA 路由注册，以及修复 401 无限弹窗死锁和媒体标签 401 黑屏的逻辑。
+- **CI/CD 自动化**：
+  - 基于 GitHub Actions 的矩阵编译、基于 Secrets 的 Keystore 签名注入、`sync_version.py` 版本号提取与注入。
 
 ### 2. Lite 版专属精简与修复工作
-- **Python 覆盖/精简脚本**：用于从完整版剥离高危依赖（`jsch`、`Java-WebSocket`）、删除冗余模块（远控、DLNA、刮削、Watch/CLI/Apple/Harmony 端）、清理残留代码引用（如 `FreeTunnelManager`）。
+- **Python 覆盖/精简脚本**：用于从完整版剥离高危依赖（`jsch`、`Java-WebSocket`）、删除冗余模块（远控、DLNA、刮削、Watch/CLI/Apple/Harmony 端）、清理残留代码引用。
 - **正则与 CI 修复**：重写了 `build-all.yml` 中的 `grep` 正则和 `sync_version.py` 的解析逻辑，使其能够正确提取带 `-lite.N` 后缀的版本号，同时修复了 `versionCode` 转换时的崩溃问题。
 - **全套专属文档**：重写了 `README.md`、`SECURITY.md`、`CONTRIBUTING.md`、`CHANGELOG.md`、`USAGE.md` 等，确保其准确反映 Lite 版的真实边界与安全策略。
 
@@ -36,6 +39,7 @@
 - **兼容性与编译排雷**：
   - 发现并反馈了因精简未彻底导致 CI 报 `cannot find symbol`（如 `FreeTunnelManager` 残留）的编译崩溃。
   - 敏锐捕捉并反馈了 `sync_version.py` 在计算 `4.1.1-lite.1` 的 `versionCode` 时触发 `ValueError` 的致命拦截，促使 AI 给出剥离后缀的修复代码。
+  - 发现并反馈了 Markdown 中的绝对链接使用了错误的默认分支名（如 `main` 应为 `master`），导致点击出现 404 页面。
   - 发现并反馈了根目录 `.git` 被覆盖脚本误删，并配合 AI 完成了 `unrelated histories` 的历史桥接。
 - **最终验收与发版**：决定某个 Lite 版本是否达到发布标准，并手动打 Tag 发版。
 
