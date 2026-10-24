@@ -49,6 +49,77 @@ public class NasHttpServer extends NanoHTTPD {
     @Override public Response serve(IHTTPSession session) {
         String uri = session.getUri();
         try {
+if ("/manifest.json".equals(uri)) {
+                InputStream is = getClass().getClassLoader().getResourceAsStream("assets/manifest.json");
+                return newFixedLengthResponse(Response.Status.OK, "application/json", is, -1);
+            }
+            if ("/sw.js".equals(uri)) {
+                InputStream is = getClass().getClassLoader().getResourceAsStream("assets/sw.js");
+                return newFixedLengthResponse(Response.Status.OK, "application/javascript", is, -1);
+            }
+
+
+
+
+            // --- 秒传校验 ---
+            if ("/api/upload/check".equals(uri) && Method.POST.equals(session.getMethod())) {
+                Map<String, String> files = new HashMap<>();
+                session.parseBody(files);
+                String hash = session.getParms().get("hash");
+                String existingPath = DatabaseManager.getInstance().getPathByHash(hash);
+                if (existingPath != null && new File(existingPath).exists()) {
+                    return text(Response.Status.OK, "SECONDS_UPLOAD:" + existingPath);
+                }
+                return text(Response.Status.OK, "NEED_UPLOAD");
+            }
+
+            // --- 接收分片 ---
+            if ("/api/upload/chunk".equals(uri) && Method.POST.equals(session.getMethod())) {
+                Map<String, String> files = new HashMap<>();
+                session.parseBody(files);
+                String hash = session.getParms().get("hash");
+                String indexStr = session.getParms().get("index");
+                String totalStr = session.getParms().get("total");
+                String fileName = session.getParms().get("name");
+                String path = session.getParms().get("path");
+                
+                int index = Integer.parseInt(indexStr);
+                int total = Integer.parseInt(totalStr);
+                
+                File targetDir = safeFile(path);
+                if (targetDir == null || !targetDir.exists()) targetDir.mkdirs();
+                
+                File tempFile = new File(targetDir, fileName + ".part");
+                File finalFile = new File(targetDir, fileName);
+                
+                // 接收并追加写入分片
+                InputStream is = session.getInputStream();
+                FileOutputStream fos = new FileOutputStream(tempFile, true);
+                byte[] buf = new byte[8192];
+                int len;
+                while ((len = is.read(buf)) > 0) fos.write(buf, 0, len);
+                fos.close();
+
+                // 检查是否全部分片接收完毕 (这里简化为判断文件大小，实际可用 lock 文件记录)
+                // 为防并发，客户端串行发送，最后一片到达时检查总大小是否吻合
+                if (index == total - 1) {
+                    synchronized (NasHttpServer.class) {
+                        if (tempFile.length() > 0) {
+                            if (finalFile.exists()) finalFile.delete();
+                            tempFile.renameTo(finalFile);
+                            DatabaseManager.getInstance().saveHash(hash, finalFile.getAbsolutePath());
+                            WebhookManager.send("文件上传完成", finalFile.getName());
+                        }
+                    }
+                }
+                return text(Response.Status.OK, "CHUNK_OK");
+            }
+
+            if ("/api/webhook/test".equals(uri) && Method.POST.equals(session.getMethod())) {
+                WebhookManager.send("测试通知", "这是一条来自 Android NAS 的测试消息！");
+                return text(Response.Status.OK, "OK");
+            }
+
             if (uri.startsWith("/share/")) return handleSecureShare(session, uri.substring(7));
             if (uri.startsWith("/dlna/")) return handleDlna(uri);
 
@@ -249,80 +320,6 @@ public class NasHttpServer extends NanoHTTPD {
         }
         return text(Response.Status.NOT_FOUND, "文件已丢失");
     }
-
-
-            
-
-            if ("/manifest.json".equals(uri)) {
-                InputStream is = getClass().getClassLoader().getResourceAsStream("assets/manifest.json");
-                return newFixedLengthResponse(Response.Status.OK, "application/json", is, -1);
-            }
-            if ("/sw.js".equals(uri)) {
-                InputStream is = getClass().getClassLoader().getResourceAsStream("assets/sw.js");
-                return newFixedLengthResponse(Response.Status.OK, "application/javascript", is, -1);
-            }
-
-
-
-
-            // --- 秒传校验 ---
-            if ("/api/upload/check".equals(uri) && Method.POST.equals(session.getMethod())) {
-                Map<String, String> files = new HashMap<>();
-                session.parseBody(files);
-                String hash = session.getParms().get("hash");
-                String existingPath = DatabaseManager.getInstance().getPathByHash(hash);
-                if (existingPath != null && new File(existingPath).exists()) {
-                    return text(Response.Status.OK, "SECONDS_UPLOAD:" + existingPath);
-                }
-                return text(Response.Status.OK, "NEED_UPLOAD");
-            }
-
-            // --- 接收分片 ---
-            if ("/api/upload/chunk".equals(uri) && Method.POST.equals(session.getMethod())) {
-                Map<String, String> files = new HashMap<>();
-                session.parseBody(files);
-                String hash = session.getParms().get("hash");
-                String indexStr = session.getParms().get("index");
-                String totalStr = session.getParms().get("total");
-                String fileName = session.getParms().get("name");
-                String path = session.getParms().get("path");
-                
-                int index = Integer.parseInt(indexStr);
-                int total = Integer.parseInt(totalStr);
-                
-                File targetDir = safeFile(path);
-                if (targetDir == null || !targetDir.exists()) targetDir.mkdirs();
-                
-                File tempFile = new File(targetDir, fileName + ".part");
-                File finalFile = new File(targetDir, fileName);
-                
-                // 接收并追加写入分片
-                InputStream is = session.getInputStream();
-                FileOutputStream fos = new FileOutputStream(tempFile, true);
-                byte[] buf = new byte[8192];
-                int len;
-                while ((len = is.read(buf)) > 0) fos.write(buf, 0, len);
-                fos.close();
-
-                // 检查是否全部分片接收完毕 (这里简化为判断文件大小，实际可用 lock 文件记录)
-                // 为防并发，客户端串行发送，最后一片到达时检查总大小是否吻合
-                if (index == total - 1) {
-                    synchronized (NasHttpServer.class) {
-                        if (tempFile.length() > 0) {
-                            if (finalFile.exists()) finalFile.delete();
-                            tempFile.renameTo(finalFile);
-                            DatabaseManager.getInstance().saveHash(hash, finalFile.getAbsolutePath());
-                            WebhookManager.send("文件上传完成", finalFile.getName());
-                        }
-                    }
-                }
-                return text(Response.Status.OK, "CHUNK_OK");
-            }
-
-            if ("/api/webhook/test".equals(uri) && Method.POST.equals(session.getMethod())) {
-                WebhookManager.send("测试通知", "这是一条来自 Android NAS 的测试消息！");
-                return text(Response.Status.OK, "OK");
-            }
 
     private Response handleDlna(String uri) { return text(Response.Status.NOT_FOUND, "Not found"); }
     private String mime(String n) { return n.endsWith(".mp4") ? "video/mp4" : "application/octet-stream"; }

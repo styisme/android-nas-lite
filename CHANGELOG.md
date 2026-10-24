@@ -2,7 +2,59 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/) 规范，
 版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
-**注意：推送到 main 分支修改此文件，将自动触发全平台 10 端代码并行编译，并自动打 Tag 平铺发布至 Releases。**
+
+**维护策略**：Lite 版不独立演进。每次完整版仓库（[android-nas](https://github.com/styisme/android-nas)）发布大版本后，会在该新版本基础上重新执行一次精简，并将结果同步推送到本仓库。因此，Lite 版的版本号始终对齐完整版，格式为 `<完整版版本号>-lite.<精简次数>`。
+
+---
+
+## [4.2.0-lite.1] - 2026-10-24
+
+**基于完整版 v4.2.0 重新精简**
+
+从完整版 v4.2.0 出发，同步了 PWA、断点续传等核心更新，并彻底剥离了高危依赖与冗余多媒体功能。
+
+### Kept（保留并同步完整版新特性）
+- **PWA 支持**：网页端支持“添加到主屏幕”，全屏无地址栏，基于 Service Worker 实现部分离线缓存。
+- **大文件断点续传与秒传**：网页端引入 `SparkMD5` 计算 Hash，服务端实装 `/api/upload/check` 校验与 2MB 分片流式追加合并，彻底解决大文件传输痛点。
+- **Webhook 事件推送**：支持向 Telegram / 企业微信群机器人推送文件上传与异常事件（设置面板已保留 Webhook 配置入口）。
+- **CI 双轨制签名与构建**：日常调试自动加 `.debug` 后缀；全量发版通过 GitHub Secrets 注入正式 keystore 执行 `assembleRelease`。
+
+### Changed（包名与 CI 调整）
+- **应用包名隔离**：将完整版的 `com.androidnas.all.*` 统一调整为 `com.androidnas.lite.*`，确保 Lite 版与完整版在同一设备上多开共存。
+- **版本号正则修复**：修复了 `sync_version.py` 和 CI 脚本中无法正确提取 `-lite.x` 后缀导致构建崩溃的问题。
+- **清理历史残留**：彻底移除了 `MainActivity` 中残留的穿透状态显示代码，以及 `app/build.gradle` 中的死代码。
+
+### Removed（本次新增的移除项）
+- **影视刮削引擎**：移除了 `MediaScraper.java` 及前端海报墙 UI。避免 NAS 向外发起第三方 API 请求，降低网络负载与隐私暴露风险，回归纯粹的“文件夹”视图。
+- **高危依赖剔除**：完整版 v4.2.0 中重新引入的 `jsch`（SSH）与 `Java-WebSocket`（远控）依赖被再次剔除。
+
+---
+
+## [4.1.1-lite.1] - 2026-10-23
+
+**首次发布：基于完整版 v4.1.1 精简**
+
+从完整版 `v4.1.1` 出发，移除所有与"局域网文件服务"主线无关或存在高危风险的能力，只保留服务端、Web 端、手机客户端、TV 端、桌面端五个端。
+
+### Removed（整端移除）
+- **Watch 手表端 / Apple 端 / Harmony 端 / 微信小程序 / 浏览器扩展 / CLI 命令行端**。
+
+### Removed（核心模块）
+- **多模态远程控制全套**：H264 推流、Root 截图、WebSocket、无障碍触控注入。
+- **Root 全盘模式与 Web Shell**：`/api/shell` 接口、越权分支、`RootManager`。
+- **Magisk 特权模块 / OOM 免死 / 冻结厂商服务**。
+- **激进保活矩阵**：静音音频欺骗、1 像素 Activity、AlarmManager 心跳。
+- **内网穿透**：免费节点遍历、自定义 SSH 隧道。
+- **DLNA 服务器与 LocalSend 接收端**。
+- **多媒体增强**：图片缩略图引擎、时光相册、硬件仪表盘、MD5 秒传（当时为预留）。
+- **多用户管理 UI**：网页端用户管理面板、`/api/users` 接口。
+
+### Kept（保留并同步完整版修复）
+- **服务端**：HTTP 文件服务、纯 Socket WebDAV/FTP、UDP 跨端发现、基础保活三件套、`admin`/`guest` 双账号鉴权。
+- **Web / Client / TV / Desktop 端**：基础的文件流转、局域网扫描、投屏、在线编辑。
+- **完整版 v4.1.1 与 v4.1.0 的所有底层兼容性修复与 Bug 修复**。
+
+---
 
 ## [4.2.0] - 2026-10-24
 
@@ -32,6 +84,7 @@
 - **PWA 静态资源路由修复**：在 `NasHttpServer` 中补全了对 `/manifest.json` 与 `/sw.js` 的拦截路由，防止前端 404。
 
 ---
+
 ## [4.1.1] - 2026-10-23
 
 **🔥 紧急修复：前端崩溃与接口兼容**
@@ -44,6 +97,7 @@
 - **CI 发版文案变量解析修复**：修复了 GitHub Actions 中生成 Release Notes 时 `cat << 'EOF'` 屏蔽变量展开的问题，确保发版说明中的 `${VERSION}` 被正确替换。
 
 ---
+
 ## [4.1.0] - 2026-10-23
 
 **家庭私有云蜕变：多用户隔离与多媒体视界**
