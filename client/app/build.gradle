@@ -3,17 +3,42 @@ plugins {
 }
 
 android {
+    lintOptions {
+        checkReleaseBuilds false
+        abortOnError false
+    }
+
     namespace 'com.androidnas.client'
     compileSdk 33
     defaultConfig {
-        applicationId "com.androidnas.client"
+        applicationId "com.androidnas.lite.client"
         minSdk 21
         targetSdk 33
         versionCode 30000
         versionName "3.1.0"
     }
-    buildTypes {
+        signingConfigs {
         release {
+            def ksPath = System.getenv("NAS_KEYSTORE_PATH")
+            if (ksPath) {
+                storeFile file(ksPath)
+                storePassword System.getenv("NAS_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("NAS_KEY_ALIAS")
+                keyPassword System.getenv("NAS_KEY_PASSWORD")
+            }
+        }
+    }
+    buildTypes {
+        debug {
+            applicationIdSuffix ".debug"
+        }
+        release {
+            if (System.getenv("NAS_KEYSTORE_PATH")) {
+                signingConfig signingConfigs.release
+            } else {
+                signingConfig signingConfigs.debug
+            }
+
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }

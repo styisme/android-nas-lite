@@ -1,4 +1,4 @@
-name: Build Desktop Client
+name: Build Desktop Client & CLI
 
 on:
   push:
@@ -22,6 +22,12 @@ jobs:
           - os: windows-latest
             artifact_name: nas-client-windows
             target: gui
+          - os: ubuntu-latest
+            artifact_name: nas-cli-linux
+            target: cli
+          - os: windows-latest
+            artifact_name: nas-cli-windows
+            target: cli
 
     steps:
       - name: Checkout
@@ -58,6 +64,17 @@ jobs:
         working-directory: ./desktop
         run: pyinstaller -F -w nas_client.py -n nas-client-linux-v${{ env.VERSION }}
 
+      # ================= CLI 端打包 =================
+      - name: Build CLI (Windows)
+        if: matrix.os == 'windows-latest' && matrix.target == 'cli'
+        working-directory: ./cli
+        run: pyinstaller -F nas_cli.py -n nas-cli-windows-v${{ env.VERSION }}
+
+      - name: Build CLI (Linux)
+        if: matrix.os == 'ubuntu-latest' && matrix.target == 'cli'
+        working-directory: ./cli
+        run: pyinstaller -F nas_cli.py -n nas-cli-linux-v${{ env.VERSION }}
+
       # ================= 上传产物 =================
       - name: Upload GUI Artifact
         if: matrix.target == 'gui'
@@ -66,3 +83,9 @@ jobs:
           name: ${{ matrix.artifact_name }}
           path: desktop/dist/*
 
+      - name: Upload CLI Artifact
+        if: matrix.target == 'cli'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: cli/dist/*

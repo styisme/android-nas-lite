@@ -1,179 +1,165 @@
-# Android NAS Lite
+# Android NAS (十端生态矩阵)
 
-[![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20Win%20%7C%20Linux%20%7C%20Web-brightgreen.svg)]()
+[![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS%20%7C%20HarmonyOS%20%7C%20Win%20%7C%20Linux%20%7C%20Web-brightgreen.svg)]()
 [![Min SDK Server](https://img.shields.io/badge/Server_Min_SDK-API_8-blue.svg)]()
 [![Min SDK Client](https://img.shields.io/badge/Client_Min_SDK-API_21-blue.svg)]()
 [![Min SDK TV](https://img.shields.io/badge/TV_Min_SDK-API_19-blue.svg)]()
 [![License](https://img.shields.io/badge/License-MIT-orange.svg)](LICENSE)
 
-> 把吃灰的 Android 手机变成一个干净、稳定、可长期挂机的局域网文件服务器。
-
-**Android NAS** 目前分为两个并行仓库，均由 [styisme](https://github.com/styisme) 维护：
-
-| 仓库 | 定位 |
-|---|---|
-| **[android-nas](https://github.com/styisme/android-nas)**（完整版） | 覆盖 10 个端的全功能私有云控制中枢，含远程控制、Root 全盘、Web Shell、内网穿透 |
-| **android-nas-lite**（本项目） | 从完整版中剥离"与 NAS 核心无关"的部分，只保留文件服务主线 |
-
-两套代码同源、同作者、同一套 API 规范；区别仅在于 **Lite 版主动裁掉了高风险与低使用率的功能**。
+> **把吃灰的 Android 手机变成全平台私有云控制中枢。**
+> 本项目不仅是一个轻量级的文件服务器，而是一个包含了服务端、网页端、手机客户端、电视盒子端、智能手表端、桌面 GUI、极客 CLI，甚至涵盖了苹果原生、鸿蒙原生与微信小程序的**十端全平台生态闭环**。
+> 
+> 原生内置 WebDAV、FTP、LocalSend、DLNA 四大主流局域网协议；支持跨端协同投屏与配置秒下发；手机端支持相册自动增量备份；全端支持局域网剪贴板同步；在 Root 特权加持下，更能解锁底层目录（`/data`, `/system`）访问、Web Shell 终端执行、以及基于 H264 硬件编码的多模态云端远控。
+>
+> **🔥 多核生态驱动 (Multi-Core Architecture)**：本项目除了主打极限兼容的 Java 主干外，还在生态上进行了深度扩展，独立孵化了 **.NET 10 (MAUI)** 次世代分支与纯血 **HarmonyOS (ArkTS)** 分支。详见下方链接。
 
 ---
 
-## 📌 维护策略（重要）
+## 🧬 子项目与生态矩阵联动
 
-**Lite 版不是独立演进的分支，而是"跟随式"维护：**
+为了让不同的技术栈发挥极致的性能，部分核心端已独立建仓维护，并与主项目保持 API 100% 互通：
 
-> **每次完整版发布大版本（`CHANGELOG.md` 顶部出现新的 `## [x.y.0]`）后，我会在该新版本基础上重新执行一次精简，并将结果同步推送到本仓库。**
-
-这意味着：
-
-- Lite 版的底层代码、协议实现、兼容性修复**全部来自完整版**；
-- 完整版修复的 Bug、提升的性能、新增的 API **会自动进入 Lite 版**；
-- 完整版的"高危功能"、"激进保活"、"多端扩张"**不会被带入 Lite 版**；
-- Lite 版与最新完整版之间不会出现"代码分叉"。
-
-如果你需要远程控制、Root 全盘、内网穿透、Watch / Apple / Harmony / 小程序 / CLI 端，请使用完整版：**[styisme/android-nas](https://github.com/styisme/android-nas)**。
+- 👉 **[android-nas-lite](https://github.com/styisme/android-nas-lite)**（精简版）：剥离远控、Root 全盘、Web Shell、内网穿透等高风险功能与低使用率模块，专注 HTTP/WebDAV/FTP 文件服务主线。跟随完整版大版本同步更新，非独立分叉。
+- 👉 **[android-nas-dotnet](https://github.com/styisme/android-nas-dotnet)**（高版本现代重构）：基于 .NET 10 (MAUI) 与 ASP.NET Core，彻底拥抱现代 Android 权限模型，提供跨平台原生 GUI 体验。
+- 👉 **[HarmonyNAS](https://github.com/styisme/HarmonyNAS)**（纯血鸿蒙原生）：基于纯正 ArkTS 重写，拒绝任何黑科技，利用系统级 `backgroundTaskManager` 合法保活，适配鸿蒙全家桶。
 
 ---
 
-## ✅ 保留的能力
+## 📚 全局文档矩阵 (Documentation)
 
-### 📱 服务端（Android 2.2+，装在闲置手机）
+本项目拥有极其详尽的文档体系，无论你是小白还是极客，都能找到你需要的说明书：
 
-- **HTTP 文件服务（8080）**：目录浏览、上传、下载、重命名、递归删除、新建文件夹、文本预览、全局搜索、Range 流媒体分片、ZIP 在线解压、局域网剪贴板。
-- **WebDAV（8081）**：纯 Socket 手写协议栈，支持 Windows 资源管理器直接映射网络驱动器。
-- **FTP（2121）**：纯 Socket 手写协议栈，支持 PASV 被动模式。
-- **跨端协同发现（UDP 8090）**：TV 端与手机端的局域网广播发现、配置下发、一键投屏。
-- **基础保活三件套**：前台服务常驻通知 + `WakeLock`（CPU）+ `WifiLock`（Wi-Fi 高性能）+ `BOOT_COMPLETED` 开机自启。
-- **账号鉴权**：内置 `admin` 与 `guest` 双账号，Basic Auth。
-
-### 🌐 Web 网页端（MD3）
-
-- 移动端优先的 Material Design 3 文件管理器。
-- 支持列表 / 网格、上传进度条、拖拽上传、多选打包 ZIP 下载、流式媒体播放、文本在线编辑、安全分享（提取码 + 有效期）。
-- 系统控制台：修改密码、修改端口、开关 WebDAV / FTP / 流媒体 / 剪贴板。
-
-### 🖥️ 手机客户端（Android 5.0+）
-
-- 多协议支持：原生 JSON / WebDAV / FTP。
-- 多设备管理、局域网一键扫描、二维码扫码添加。
-- 相册自动增量备份（比对 NAS `/Photos/` 目录，只传新照片）。
-- 文件列表网格 / 线性视图、多选批处理、批量下载 / 删除、在线文本编辑、分享外链调起系统分享面板、一键投屏到 TV。
-
-### 📺 TV 电视端（Android 4.4+）
-
-- 专为老旧电视盒子打造，纯原生无第三方库，包体极小。
-- Leanback 卡片流 4 列网格，遥控器焦点移动 1.1 倍放大动画。
-- 内置"全屏虚拟键盘 + 边打边搜"、接收手机配置下发与投屏指令。
-
-### 💻 桌面端（Windows 7+ / Linux）
-
-- 纯原生 Python + Tkinter，无内置浏览器，秒开不卡顿。
-- 全局搜索、局域网剪贴板双向同步、一键复制免密外链。
-- 多选并发上传、在线文本编辑、ZIP 在线解压。
+- 📖 **[终极使用与运维指南 (USAGE.md)](docs/USAGE.md)**：
+  从零部署、网络映射（WebDAV/FTP）、跨端协同配置、相册备份实操、远控配置、CLI 终端指令大全以及深度故障排查。这是你上手 NAS 的第一站。
+- 🔌 **[开发者 API 接口规范 (API_DOC.md)](docs/API_DOC.md)**：
+  包含服务端 8080 端口的所有 HTTP API 细节、WebDAV 底层协议规范、跨端协同 UDP 协议以及特殊端口分配。
+- 🏗️ **[底层架构深度解析 (ARCHITECTURE.md)](docs/ARCHITECTURE.md)**：
+  深入剖析纯 Socket 手写协议栈、H264 远控推流原理、极限兼容 API 8 的妥协之道、全盘突破机制以及四层保活矩阵。
+- 🛡️ **[安全策略与高危警告 (SECURITY.md)](SECURITY.md)**：
+  **（高危必读）** 使用全盘模式、Web Shell 和公网穿透前，请务必阅读此文档，了解明文传输风险与防变砖守则。
+- 🤝 **[开发者贡献指南 (CONTRIBUTING.md)](CONTRIBUTING.md)**：
+  AI 生成代码的声明、深度项目结构图、多环境编译隔离说明、代码提交规范。
+- 🤖 **[AI 生成声明 (AI_DISCLOSURE.md)](docs/AI_DISCLOSURE.md)**：
+  关于本项目 99% 代码由大模型生成的真实开发流程与局限性声明。
+- 📝 **[版本更新日志 (CHANGELOG.md)](CHANGELOG.md)**：
+  追溯项目从 v1.0.0 到 v4.2.0 的完整演进史。
 
 ---
 
-## ❌ 已从 Lite 版移除的能力
+## 🚨 最重要：关于下载与发版机制
 
-以下功能**在完整版中仍然可用**，Lite 版主动移除：
+由于本项目采用极其激进的 CI/CD 自动化迭代，GitHub 右侧的 Releases 页面往往滞后于最新代码。**请直接前往 GitHub Actions 页面下载最新构建产物！**
 
-| 分类 | 移除项 | 移除原因 |
-|---|---|---|
-| **远程控制** | H264 硬件编码推流、Root 截图流、WebSocket 服务（8082）、无障碍触控注入、Root `input` 注入 | 与"NAS"核心价值无关，且存在屏幕泄露与设备被完全接管的风险 |
-| **高权限** | Root 全盘模式、Web Shell 终端、Magisk 特权模块生成、OOM 免死注入、冻结厂商省电服务 | 任何误操作都可能导致系统变砖或厂商服务异常，无法由维护者兜底 |
-| **激进保活** | 静音音频欺骗、1 像素 Activity、AlarmManager 心跳、双进程守护 | Android 12+ 已被系统限制，且用户发现"偷偷放音频"会迅速失去信任 |
-| **网络穿透** | 免费内网穿透节点遍历、自定义 SSH 隧道 | 引导用户自行使用 frp / ngrok / Cloudflare Tunnel 更安全稳定 |
-| **局域网协议** | DLNA 媒体服务器（SSDP）、LocalSend 接收端 | TV 端直连 NAS 更稳；LocalSend 有官方客户端可用 |
-| **多媒体增强** | 图片缩略图引擎、时光相册、影视海报墙、硬件仪表盘、文件秒传（MD5）、分片合并 | 属于增值功能而非 NAS 核心，且增加服务端负载与维护面 |
-| **多用户管理** | 网页端用户管理面板、`/api/users` 接口 | 保留 admin / guest 双账号即可满足绝大多数家庭场景 |
-| **其它端** | Watch 端、Apple（SwiftUI）端、Harmony（ArkTS）端、微信小程序、浏览器扩展、CLI 命令行端 | 这些端代码量小、用户量低，但在 CI 中占用等量维护成本 |
+👉 **[点此进入 Android NAS 主干 Actions 获取最新版构建产物](https://github.com/styisme/android-nas/actions)**
+
+> **💡 极客一键全量平铺发版模式**：
+> 本项目配置了极其严谨的双轨制 CI/CD：
+> 1. **日常改代码**：只触发对应端的快速独立编译（已配置忽略 `.md` 等文档修改）。
+> 2. **全量发版**：每次修改根目录 `CHANGELOG.md` 并推送，CI 会瞬间启动 `build-all.yml` 矩阵，将 **10 个端** 全部并行编译。最终产物不会被塞进恶心的 ZIP，而是自动重命名并**直接平铺展示在 Releases 页面的 Assets 列表中**，供用户按需下载。
 
 ---
 
-## 🔌 端口一览
+## 🌟 为什么选择本项目？（碾压级核心优势）
 
-| 端口 | 协议 | 用途 |
-|---|---|---|
-| `8080` | HTTP | Web 网页管理 / JSON API / 流媒体分片 / 分享短链 |
-| `8081` | WebDAV | 标准 WebDAV 协议，可直接在 Windows 资源管理器映射 |
-| `2121` | FTP | 原生 FTP 服务，PASV 被动模式 |
-| `8090` | UDP + HTTP | 跨端协同发现、配置下发、投屏指令 |
+市面上的手机 NAS 软件往往存在各种妥协：要么不支持老旧系统，要么 UI 落后，或者受限于单一平台。本项目专为极客打造，具备以下优势：
 
----
-
-## 🚀 快速上手
-
-### 方式一：从本仓库 Actions 下载构建产物
-
-前往 **[本仓库的 Actions 页面](../../actions)**，下载最新的 `android-nas-server-lite-v*.apk`。
-
-> ⚠️ **不要去完整版仓库下载 APK。** 完整版的包包含远程控制、Root 全盘与 Web Shell，Lite 版的包只在本仓库发布。
-
-安装到闲置手机后，**首次必须手动打开一次 App** 并授予存储与通知权限，之后服务才能开机自启。然后用浏览器访问 `http://手机IP:8080`。
-
-### 方式二：从本仓库源码编译
-
-```bash
-git clone <本仓库地址>
-cd android-nas-lite
-chmod +x gradlew
-./gradlew assembleDebug --no-daemon
-```
-
-产物位置：`app/build/outputs/apk/debug/app-debug.apk`
-
-> 编译环境：JDK 8 + Android SDK（compileSdk 30 / buildTools 30.0.3）。服务端为兼容 API 8，工程锁定了旧版 AGP 与 Gradle，请勿升级工具链。
-
-### 方式三：把 NAS 映射到电脑
-
-> 前置条件：方式一或方式二已完成，服务端 App 已在手机上运行。
-
-**WebDAV（推荐）**
-1. Windows 资源管理器 → 右键「此电脑」→「映射网络驱动器」
-2. 文件夹填写：`http://手机IP:8081`
-3. 输入 admin / admin（或你修改后的密码）
-
-**FTP**
-1. Windows 资源管理器地址栏直接输入：`ftp://手机IP:2121`
-2. 回车后输入账号密码
+1. **十端合一，全场景覆盖**：服务端、Web、手机、TV、手表、桌面、CLI、苹果、鸿蒙、小程序。无论你在哪块屏幕上，都能无缝访问你的数据。
+2. **多协议制霸**：原生实现 WebDAV、FTP、LocalSend、DLNA。在开启 Root 全盘模式后，这些协议可直接穿透 Android 沙盒访问系统底层。
+3. **极客特权（Root/ADB）**：支持 OOM 免死注入、静音音频保活、Web Shell 终端。网页端甚至集成了 H264 远控引擎，鼠标点哪手机点哪。
+4. **极致兼容与美观并存**：服务端最低兼容十年前的 Android 2.2 (API 8)；手机端和网页端全面采用极致的 Material Design 3 规范，Web 端现已支持 PWA（添加到主屏幕，类原生体验）。
+5. **多核架构进化与家庭云蜕变**：保留了对上古设备极致兼容的 Java 主干。同时，v4.2.0 引入了 SQLite 多用户数据库、缩略图引擎、TB 级大文件断点续传与秒传引擎，正式从“单机玩具”蜕变为“家庭私有云”。
 
 ---
 
-## 🛠 兼容性矩阵
+## ✨ 十端详细功能矩阵 (v4.2.0 全新特性)
 
-| 端 | 最低兼容系统 | 核心技术栈 |
-|---|---|---|
-| 服务端（Java） | Android 2.2（API 8） | 纯 Java + NanoHTTPD + 手写 Socket |
-| 手机客户端 | Android 5.0（API 21） | Java + Material Design 3 + OkHttp |
-| TV 端 | Android 4.4（API 19） | Java + Leanback 风格卡片流 + RecyclerView |
-| 桌面端 | Windows 7+ / 主流 Linux 发行版 | Python 3.8+ + Tkinter |
-| Web 端 | 任意现代浏览器 | 原生 HTML / CSS / JS + Material Design 3 变量 |
+### 📱 服务端 (Server - 装在闲置手机)
+- **多端口并发调度**：
+  - `8080`：Web 网页管理 / JSON API / 流媒体分片。
+  - `8081`：标准 WebDAV 协议（**纯 Socket 手写实现**）。
+  - `2121`：原生 FTP 服务（支持 PASV 被动模式）。
+  - `53317`：LocalSend 接收端。
+  - `8090`：跨端协同发现服务（UDP）。
+  - `8082`：WebSocket 远控服务（H264 推流与触控指令）。
+- **多用户隔离 (SQLite)**：底层生成 `nas_core.db`，支持多账号注册，不同账号自动映射到独立的物理目录，互不干扰。
+- **缩略图引擎**：自动解析图片并生成 300px 小图缓存至 `.thumbnails`，实现海量照片秒级加载。
+- **硬件监控 API**：实时输出 CPU、内存、存储空间与电池电量（自带 API 8 兼容守卫）。
+- **全盘 Root 模式与无敌保活**：一键突破沙盒，静音音频欺骗与 Root 注入免死。
+- **大文件秒传与断点续传 (新增)**：底层实装 MD5 秒传校验与 2MB 分片流式合并，支持超大文件无视网络波动的稳定上传。
+- **Webhook 自动化通知 (新增)**：支持配置 Telegram/企业微信 Webhook，实现文件上传、异常登录等事件的实时推送。
 
-- **版本号控制**：沿用完整版的 `sync_version.py`，CI 会自动读取 `CHANGELOG.md` 的版本号并注入各端工程配置。
-- **服务端锁定 `targetSdk 22`**：通过系统兼容模式授予存储权限，从而在 API 8 上稳定运行，代价是无法使用 `MANAGE_EXTERNAL_STORAGE` 等现代 API。
+### 🌐 Web 网页端 (MD3 Web)
+- **多模态远程桌面**：H264 硬件编码 30fps 推流 + Root 截图降级方案，支持触控反向控制。
+- **PWA 渐进式应用 (新增)**：集成 `manifest.json` 与 `Service Worker`，可通过 Chrome 添加到手机桌面，全屏无浏览器地址栏，体验等同原生 App。
+- **时光相册 (新增)**：获取全盘图片 EXIF 时间，按瀑布流倒序展示，极度丝滑。
+- **影视海报墙 (升级)**：接入免费开源影视元数据接口（免 Key 纯 Java 解析），自动提取文件名并刮削真实海报、评分与简介，告别枯燥的文件名。
+- **硬件仪表盘 (新增)**：实时图表展示服务端的运行状态。
+- **用户管理面板 (新增)**：直接在网页端添加新用户、分配存储根目录。
+- **流式打包下载 (新增)**：在网页上多选多个文件，服务端实时压缩成 ZIP 流并下载，不占用本地空间。
+- **安全分享 (新增)**：生成免密短链时，可设置有效期（如 1 天）和提取码（如 1234）。
+- **系统控制台**：在网页端直接修改密码、修改端口、开关协议及配置 Webhook。
+
+### 🖥️ 手机客户端 (Client - Android 5.0+)
+- **相册自动增量备份**：利用 `MediaStore` 扫描本地，比对 NAS `/Photos/` 目录，只传新照片。
+- **局域网一键扫描**：多线程并发探测。
+- **远控与控制台**：原生 `WebViewActivity`，一键全屏打开终端与远控面板。
+- **分享外链**：直接调起系统分享面板发送免密链接。
+
+### 💻 桌面端 (Desktop - Win/Linux)
+- **纯原生 Tkinter**：无内置浏览器，秒开不卡顿。
+- **全局搜索与剪贴板**：顶部全局搜索与剪贴板双向同步。
+- **一键复制外链**：选中文件生成免密短链并自动复制到电脑剪贴板。
+- **在线编辑与解压**：多选并发上传，自带在线文本编辑与 ZIP 解压。
+
+### ⌨️ CLI 命令行端 (Win/Linux)
+- **交互式 Shell**：输入 `shell` 进入，支持 Tab 路径自动补全。
+- **全指令支持**：支持 `ls`、`cd`、`get`、`put`、`find`、`unzip`、`share`、`exec`。
+
+### 🍎 苹果端 (SwiftUI) & 🟦 鸿蒙端 (ArkTS)
+- **苹果端**：原生编写，全端对齐了搜索、剪贴板同步与控制台唤起。
+- **鸿蒙端**：基于 ArkUI 声明式开发，一套代码自适应手机/平板/PC，依托官方长时任务合法驻留。
+
+### 📺 TV & ⌚ 手表端
+- **TV 端**：Leanback 卡片流 4 列网格，遥控器焦点移动 1.1 倍放大动画。
+- **手表端**：RecyclerView 卡片布局，按压动画。支持媒体预览与下载至专属沙盒。
+
+### 📱 微信小程序端
+- **免安装即用**：支持全盘文件搜索、剪贴板浮层、以及生成免密分享短链。
 
 ---
 
-## ⚠️ 已知局限与风险
+## 🔗 跨端协同与黑科技玩法
 
-1. **明文 HTTP 传输**：默认不带 TLS。局域网内可接受，**请勿将 8080 / 8081 / 2121 端口直接暴露到公网**。需要远程访问请自行配置 frp / ngrok / Cloudflare Tunnel。
-2. **保活仅到"前台服务"级别**：`WakeLock` + `WifiLock` 能显著降低被系统回收的概率，但在极低内存设备或激进 ROM（如 MIUI 深度清理）上仍可能被杀。重新打开 App 或重启设备后服务会自动恢复。
-3. **无 SSL 证书**：WebDAV / FTP 均为明文协议，抓包可读。敏感数据请勿在公共 Wi-Fi 下传输。
-4. **单机 SQLite**：`nas_core.db` 仍用于账号与文件哈希，但 Lite 版移除了多用户管理 UI，实际只使用 `admin` / `guest` 两个预置账号。
-5. **精简由维护者执行**：Lite 版不提供面向用户的一键精简工具。若你希望基于某个特定提交做自定义裁剪，请自行 fork 完整版并参考本仓库的最终状态手动删除。
+1. **一键下发配置**：手机端点击“发送配置到电视”，通过 UDP 发现电视并下发 NAS 密码。
+2. **手机/手表投屏**：点击视频发送 Play 指令，电视端瞬间拉起播放。
+3. **全端剪贴板同步**：手机复制文字，网页端、桌面端直接粘贴。
 
 ---
 
-## 🔗 两个仓库的分工
+## 🛠 兼容性与底层架构浅析
 
-- **功能建议、Bug 报告、新特性讨论** → 提交到 **[完整版仓库 Issues](https://github.com/styisme/android-nas/issues)**。完整版修好之后，Lite 版在下一次同步中自动受益，无需重复提交。
-- **Lite 版专属的讨论**（某个功能是否应当进一步移除、是否应当从完整版恢复）→ 提交到**本仓库 Issues**。
+| 端 | 最低兼容系统 | 核心技术栈 | 核心取舍 |
+|---|---|---|---|
+| 服务端 (Java) | Android 2.2 (API 8) | 纯 Java + NanoHTTPD + Socket + SQLite | 锁定 targetSdk 22 跳过动态权限，极限兼容。 |
+| 手机端 | Android 5.0 (API 21) | Java + Material Design 3 + OkHttp | 强制动态取色，适配 Android 13+ 权限。 |
+| 桌面端 / CLI | Win 7 / Linux | Python 3 + Tkinter / cmd | 无内置浏览器，秒开不卡顿。 |
+| 苹果 / 鸿蒙 | iOS 15 / Harmony 4 | SwiftUI / ArkTS | 原生声明式 UI，系统级 Want/OpenURL 调用。 |
+| 次世代 (.NET) | Android 10+ / Win 10+ | C# + MAUI + ASP.NET Core | 现代存储权限模型，原生跨平台 GUI。 |
 
-两个仓库由同一维护者跟进，Issue 之间不会来回踢皮球。
+- **版本号控制**：项目引入了 `sync_version.py`。Actions 会自动读取 `CHANGELOG.md` 的版本号，注入到所有端的工程配置中。
+- **纯手写协议栈**：WebDAV 与 FTP 完全手写 Socket 报文解析，不依赖重型库，保证极低包体积。
+
+---
+
+## ⚠️ 架构局限性与风险提示
+
+1. **极寒模式副作用**：为了极致省电，开启极寒模式会强制关闭 LocalSend、内网穿透和 DLNA，仅保留核心传输。
+2. **Root 模式的危险性**：全盘模式与 Web Shell 拥有极高的系统权限。在网页端操作 `/system` 等目录时请极其谨慎，严禁执行 `rm -rf /` 等破坏性指令。
+3. **多用户共享**：请妥善保管 `admin` 账号，普通用户被限制在自己的根目录下，但仍需注意局域网明文传输风险。
+4. **明文传输**：目前局域网主要基于 HTTP 传输。若在公共网络使用，请自建 SSH 穿透加密，或开启自签 HTTPS 框架。
 
 ---
 
 ## 协议
 
-本项目遵循 [MIT License](LICENSE)。
+本项目使用 [MIT License](LICENSE)。

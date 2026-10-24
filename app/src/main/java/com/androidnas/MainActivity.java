@@ -39,6 +39,7 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
         SettingsManager.init(this);
         AuthManager.init(this);
+        RemoteDesktopManager.init(this);
         currentDir = new File(ROOT);
         pathView = (TextView) findViewById(R.id.pathView);
         statusView = (TextView) findViewById(R.id.statusView);
@@ -202,8 +203,23 @@ public class MainActivity extends Activity {
             }).setNegativeButton("取消", null).show();
             return true;
         } else if (id == 6) { showControlCenter(); return true; }
-        else if (id == 4) {
+ else if (id == 4) {
             new AlertDialog.Builder(this).setTitle("最近日志").setMessage(LogManager.getAllLogs()).setPositiveButton("关闭", null).show();
+            return true;
+        } else if (id == 10) {
+            try {
+                startActivity(new Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS));
+            } catch (Exception e) {
+                Toast.makeText(this, "无法打开无障碍设置", Toast.LENGTH_SHORT).show();
+            }
+            return true;
+        } else if (id == 9) {
+            android.media.projection.MediaProjectionManager pm = (android.media.projection.MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
+            Intent intent = pm.createScreenCaptureIntent();
+            startActivityForResult(intent, 1001);
+            return true;
+        } else if (id == 8) {
+            showAdvancedKeepAlive();
             return true;
         } else if (id == 7) {
             new AlertDialog.Builder(this).setTitle("关于 Android NAS")
@@ -221,6 +237,9 @@ public class MainActivity extends Activity {
             return p;
         } catch (Exception e) { return null; }
     }
+
+
+
 
 
     private void showControlCenter() {
@@ -255,6 +274,7 @@ public class MainActivity extends Activity {
         groupServices.setVisibility(View.GONE);
         CheckBox cbWebDav = new CheckBox(this); cbWebDav.setText("开启 WebDAV"); cbWebDav.setChecked(SettingsManager.isWebDavEnabled()); groupServices.addView(cbWebDav);
         CheckBox cbFtp = new CheckBox(this); cbFtp.setText("开启 FTP 服务"); cbFtp.setChecked(SettingsManager.isFtpEnabled()); groupServices.addView(cbFtp);
+        CheckBox cbDlna = new CheckBox(this); cbDlna.setText("开启 DLNA 投屏"); cbDlna.setChecked(SettingsManager.isDlnaEnabled()); groupServices.addView(cbDlna);
         CheckBox cbStream = new CheckBox(this); cbStream.setText("允许网页流媒体"); cbStream.setChecked(SettingsManager.isStreamEnabled()); groupServices.addView(cbStream);
         CheckBox cbClipboard = new CheckBox(this); cbClipboard.setText("开启剪贴板"); cbClipboard.setChecked(SettingsManager.isClipboardEnabled()); groupServices.addView(cbClipboard);
         layout.addView(groupServices);
@@ -264,6 +284,10 @@ public class MainActivity extends Activity {
         groupAdvanced.setOrientation(LinearLayout.VERTICAL);
         groupAdvanced.setVisibility(View.GONE);
         CheckBox cbLowPower = new CheckBox(this); cbLowPower.setText("极寒省电模式"); cbLowPower.setChecked(SettingsManager.isLowPowerMode()); groupAdvanced.addView(cbLowPower);
+        CheckBox cbGlobal = new CheckBox(this); cbGlobal.setText("🦅 全盘模式 (需 Root)"); cbGlobal.setChecked(SettingsManager.isGlobalMode()); groupAdvanced.addView(cbGlobal);
+        CheckBox cbSilent = new CheckBox(this); cbSilent.setText("🎵 静音保活"); cbSilent.setChecked(SettingsManager.isSilentKeepAlive()); groupAdvanced.addView(cbSilent);
+        CheckBox cbLs = new CheckBox(this); cbLs.setText("开启 LocalSend"); cbLs.setChecked(SettingsManager.isLocalSendEnabled()); groupAdvanced.addView(cbLs);
+        EditText etPin = new EditText(this); etPin.setHint("LocalSend PIN"); etPin.setText(SettingsManager.getLsPin()); groupAdvanced.addView(etPin);
         layout.addView(groupAdvanced);
 
         tabGroup.setOnCheckedChangeListener(new RadioGroup.OnCheckedChangeListener() {
@@ -295,9 +319,15 @@ public class MainActivity extends Activity {
 
                     SettingsManager.setWebDavEnabled(cbWebDav.isChecked());
                     SettingsManager.setFtpEnabled(cbFtp.isChecked());
+                    SettingsManager.setDlnaEnabled(cbDlna.isChecked());
                     SettingsManager.setStreamEnabled(cbStream.isChecked());
                     SettingsManager.setClipboardEnabled(cbClipboard.isChecked());
+
                     SettingsManager.setLowPowerMode(cbLowPower.isChecked());
+                    SettingsManager.setGlobalMode(cbGlobal.isChecked());
+                    SettingsManager.setSilentKeepAlive(cbSilent.isChecked());
+                    SettingsManager.setLocalSendEnabled(cbLs.isChecked());
+                    SettingsManager.setLsPin(etPin.getText().toString().trim());
 
                     if (HttpServerService.isRunning()) {
                         stopService(new Intent(MainActivity.this, HttpServerService.class));
@@ -313,6 +343,8 @@ public class MainActivity extends Activity {
                 }
             }).setNegativeButton("取消", null).show();
     }
+
+
 
     private void showFileMenu(final File f) {
         final String[] actions = f.isDirectory() ? new String[]{"重命名", "删除", "属性"} : new String[]{"删除", "属性"};
@@ -351,7 +383,7 @@ public class MainActivity extends Activity {
     }
 
     @Override protected void onResume() { super.onResume(); updateServiceStatus(); refresh(); }
-    @Override protected void onDestroy() { super.onDestroy(); }
+    @Override protected void onDestroy() { super.onDestroy(); RemoteDesktopManager.stopStream(); }
 
     private void updateServiceStatus() {
         boolean running = HttpServerService.isRunning();

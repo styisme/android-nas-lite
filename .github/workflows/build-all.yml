@@ -29,16 +29,31 @@ jobs:
         with: { distribution: temurin, java-version: '8' }
       - uses: actions/setup-python@v5
         with: { python-version: '3.x' }
+      - name: Decode Release Keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.NAS_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$GITHUB_WORKSPACE/release.keystore"
+            echo "OK: Release keystore decoded"
+          else
+            echo "WARN: NAS_KEYSTORE_BASE64 not set, fallback to debug signing"
+          fi
       - name: Sync Version & Build
+        env:
+          NAS_KEYSTORE_PATH: ${{ github.workspace }}/release.keystore
+          NAS_KEYSTORE_PASSWORD: ${{ secrets.NAS_KEYSTORE_PASSWORD }}
+          NAS_KEY_ALIAS: ${{ secrets.NAS_KEY_ALIAS }}
+          NAS_KEY_PASSWORD: ${{ secrets.NAS_KEY_PASSWORD }}
         shell: bash
         run: |
           python sync_version.py
           VERSION=$(grep -oP '##\s*\[?v?\K[0-9a-zA-Z\.-]+' CHANGELOG.md | head -1)
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
-          mv app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/android-nas-server-v${VERSION}.apk
+          ./gradlew assembleRelease --no-daemon
+          mv app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/android-nas-server-v${VERSION}.apk
       - uses: actions/upload-artifact@v4
-        with: { name: server-apk, path: app/build/outputs/apk/debug/*.apk }
+        with: { name: server-apk, path: app/build/outputs/apk/release/*.apk }
 
   build-client:
     runs-on: ubuntu-latest
@@ -48,15 +63,30 @@ jobs:
         with: { distribution: temurin, java-version: '11' }
       - uses: actions/setup-python@v5
         with: { python-version: '3.x' }
+      - name: Decode Release Keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.NAS_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$GITHUB_WORKSPACE/release.keystore"
+            echo "OK: Release keystore decoded"
+          else
+            echo "WARN: NAS_KEYSTORE_BASE64 not set, fallback to debug signing"
+          fi
       - name: Build
+        env:
+          NAS_KEYSTORE_PATH: ${{ github.workspace }}/release.keystore
+          NAS_KEYSTORE_PASSWORD: ${{ secrets.NAS_KEYSTORE_PASSWORD }}
+          NAS_KEY_ALIAS: ${{ secrets.NAS_KEY_ALIAS }}
+          NAS_KEY_PASSWORD: ${{ secrets.NAS_KEY_PASSWORD }}
         shell: bash
         run: |
           python sync_version.py
           VERSION=$(grep -oP '##\s*\[?v?\K[0-9a-zA-Z\.-]+' CHANGELOG.md | head -1)
-          cd client && chmod +x gradlew && ./gradlew assembleDebug --no-daemon
-          mv app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/android-nas-client-v${VERSION}.apk
+          cd client && chmod +x gradlew && ./gradlew assembleRelease --no-daemon
+          mv app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/android-nas-client-v${VERSION}.apk
       - uses: actions/upload-artifact@v4
-        with: { name: client-apk, path: client/app/build/outputs/apk/debug/*.apk }
+        with: { name: client-apk, path: client/app/build/outputs/apk/release/*.apk }
 
   build-tv:
     runs-on: ubuntu-latest
@@ -66,15 +96,30 @@ jobs:
         with: { distribution: temurin, java-version: '11' }
       - uses: actions/setup-python@v5
         with: { python-version: '3.x' }
+      - name: Decode Release Keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.NAS_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$GITHUB_WORKSPACE/release.keystore"
+            echo "OK: Release keystore decoded"
+          else
+            echo "WARN: NAS_KEYSTORE_BASE64 not set, fallback to debug signing"
+          fi
       - name: Build
+        env:
+          NAS_KEYSTORE_PATH: ${{ github.workspace }}/release.keystore
+          NAS_KEYSTORE_PASSWORD: ${{ secrets.NAS_KEYSTORE_PASSWORD }}
+          NAS_KEY_ALIAS: ${{ secrets.NAS_KEY_ALIAS }}
+          NAS_KEY_PASSWORD: ${{ secrets.NAS_KEY_PASSWORD }}
         shell: bash
         run: |
           python sync_version.py
           VERSION=$(grep -oP '##\s*\[?v?\K[0-9a-zA-Z\.-]+' CHANGELOG.md | head -1)
-          cd tv && chmod +x gradlew && ./gradlew assembleDebug --no-daemon
-          mv app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/android-nas-tv-v${VERSION}.apk
+          cd tv && chmod +x gradlew && ./gradlew assembleRelease --no-daemon
+          mv app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/android-nas-tv-v${VERSION}.apk
       - uses: actions/upload-artifact@v4
-        with: { name: tv-apk, path: tv/app/build/outputs/apk/debug/*.apk }
+        with: { name: tv-apk, path: tv/app/build/outputs/apk/release/*.apk }
 
   build-pc:
     runs-on: ${{ matrix.os }}
@@ -156,6 +201,7 @@ jobs:
           find ./all_artifacts/server-apk -type f -name "*.apk" -exec cp {} release_files/AndroidNAS-Server-$VERSION.apk \; || true
           find ./all_artifacts/client-apk -type f -name "*.apk" -exec cp {} release_files/AndroidNAS-Client-$VERSION.apk \; || true
           find ./all_artifacts/tv-apk -type f -name "*.apk" -exec cp {} release_files/AndroidNAS-TV-$VERSION.apk \; || true
+          find ./all_artifacts/watch-apk -type f -name "*.apk" -exec cp {} release_files/AndroidNAS-Watch-$VERSION.apk \; || true
           
           # PC端 Windows
           find ./all_artifacts/desktop-windows -type f -name "*.exe" -exec cp {} release_files/AndroidNAS-Desktop-Windows-$VERSION.exe \; || true
@@ -164,6 +210,8 @@ jobs:
           find ./all_artifacts/desktop-linux -type f -exec cp {} release_files/AndroidNAS-Desktop-Linux-$VERSION \; || true
           
           # 额外生态
+          find ./all_artifacts/browser-extension -type f -name "*.zip" -size +0c -exec cp {} release_files/Browser-Extension.zip \; || true
+          find ./all_artifacts/wechat-miniprogram -type f -name "*.zip" -size +0c -exec cp {} release_files/WeChat-MiniProgram.zip \; || true
           
           echo "====== 即将发布的文件列表 ======"
           ls -la release_files/
@@ -176,12 +224,10 @@ jobs:
           # 提取最新的更新日志部分（从最新的 ## [ 开始，到下一个 ## [ 结束）
           awk '/^## \[/{count++} count==1{print}' CHANGELOG.md | tail -n +2 > changelog_body.md
           
-                    cat << EOF > release_notes.md
-          ## 👑 Android NAS Lite v${VERSION} 正式发布！
+          cat << EOF > release_notes.md
+          ## 👑 Android NAS v${VERSION} 正式发布！
           
-          **把吃灰的 Android 手机变成干净、稳定、可长期挂机的局域网文件服务器。**
-          
-          这是 Android NAS 的精简版，基于完整版剥离了高风险与低使用率功能，只保留最核心的文件服务。
+          **十端生态矩阵：全平台私有云控制中枢**
           
           ---
           
@@ -190,7 +236,7 @@ jobs:
           
           cat changelog_body.md >> release_notes.md
           
-                    cat << EOF >> release_notes.md
+          cat << EOF >> release_notes.md
           
           ---
           
@@ -198,18 +244,23 @@ jobs:
           
           请直接点击下方对应的文件下载（所有端版本号均已同步）：
           
-          - 📱 **服务端 (旧手机)**：`AndroidNAS-Server-v${VERSION}.apk`
-          - 🖥️ **手机客户端 (主力机)**：`AndroidNAS-Client-v${VERSION}.apk`
-          - 📺 **TV 电视端**：`AndroidNAS-TV-v${VERSION}.apk`
-          - 💻 **Windows GUI**：`AndroidNAS-Desktop-Windows-v${VERSION}.exe`
-          - 🐧 **Linux GUI**：`AndroidNAS-Desktop-Linux-v${VERSION}`
+          - 📱 **服务端 (旧手机)**：`android-nas-server-v${VERSION}.apk`
+          - 🖥️ **手机客户端 (主力机)**：`android-nas-client-v${VERSION}.apk`
+          - 📺 **TV 电视端**：`android-nas-tv-v${VERSION}.apk`
+          - ⌚ **手表端**：`android-nas-watch-v${VERSION}.apk`
+          - 💻 **Windows GUI**：`nas-client-windows-v${VERSION}.exe`
+          - 🐧 **Linux GUI**：`nas-client-linux-v${VERSION}`
+          - 🌐 **浏览器插件 / 微信小程序**：`.zip` 压缩包
+          
+          *(注：苹果与鸿蒙端需使用开发者工具自行编译签名。)*
           
           ---
           
-          ### ⚠️ 安全提示
+          ### ⚠️ 安全与高危警告
           
-          1. **明文传输**：局域网默认明文 HTTP。请勿将端口直接暴露公网，公网访问请自行配置 TLS 穿透。
-          2. **保活边界**：Lite 版不包含激进保活。若掉线请将应用设为“无限制”。
+          1. **全盘模式与远控的危险性**：开启 Web Shell、H264 远控或 Root 免死保活时，应用将拥有极高的系统权限。**请绝对不要在公共 WiFi 下暴露远控端口**。
+          2. **保活模块冲突**：若刷入了 Magisk 特权模块，可能会导致系统安装器提示“应用未卸载”。请进入 Magisk 临时关闭模块并重启后，使用 `pm uninstall` 强删。
+          3. **明文传输**：局域网传输默认明文 HTTP。公网访问请务必自建 SSH 穿透进行加密。
           
           ---
           

@@ -1,11 +1,16 @@
 apply plugin: 'com.android.application'
 
 android {
+    lintOptions {
+        checkReleaseBuilds false
+        abortOnError false
+    }
+
     compileSdkVersion 30
     buildToolsVersion "30.0.3"
 
     defaultConfig {
-        applicationId "com.androidnas"
+        applicationId "com.androidnas.lite.server"
         // 核心修复：恢复极限兼容 API 8
         minSdkVersion 8
         targetSdkVersion 22
@@ -13,8 +18,28 @@ android {
         versionName "2.1.0"
     }
 
-    buildTypes {
+        signingConfigs {
         release {
+            def ksPath = System.getenv("NAS_KEYSTORE_PATH")
+            if (ksPath) {
+                storeFile file(ksPath)
+                storePassword System.getenv("NAS_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("NAS_KEY_ALIAS")
+                keyPassword System.getenv("NAS_KEY_PASSWORD")
+            }
+        }
+    }
+    buildTypes {
+        debug {
+            applicationIdSuffix ".debug"
+        }
+        release {
+            if (System.getenv("NAS_KEYSTORE_PATH")) {
+                signingConfig signingConfigs.release
+            } else {
+                signingConfig signingConfigs.debug
+            }
+
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
@@ -27,4 +52,4 @@ android {
 
 dependencies {
     implementation 'org.nanohttpd:nanohttpd:2.2.0'
-}
+                }

@@ -31,9 +31,13 @@ public class HttpServerService extends Service {
     private NasHttpServer serverHttp;
     private WebDavServer webDavHttp;
     private FtpServer ftpServer;
+    private DlnaServer dlnaServer;
+    private LocalSendServer lsServer;
+    private LocalSendDiscovery lsDiscovery;
     private PowerManager.WakeLock wakeLock;
     private WifiManager.WifiLock wifiLock;
     private Handler renewHandler;
+    private SilentPlayer silentPlayer;
     private Runnable renewRunnable;
 
     @Override public void onCreate() {
@@ -80,10 +84,74 @@ public class HttpServerService extends Service {
         if (SettingsManager.isFtpEnabled()) try {
             ftpServer = new FtpServer(SettingsManager.getFtpPort(), this); ftpServer.start(); startedServices.add("FTP");
         } catch (Exception e) { lastError += "FTP: " + e.getMessage() + "\n"; ok = false; }
+        if (SettingsManager.isDlnaEnabled()) try {
+            dlnaServer = new DlnaServer(this); dlnaServer.start(); startedServices.add("DLNA");
+        } catch (Exception e) { lastError += "DLNA: " + e.getMessage() + "\n"; ok = false; }
+        if (lowPower) { FreeTunnelManager.stop(); SshTunnelManager.stop(); }
+        else if (SettingsManager.isLocalSendEnabled()) try {
+            lsServer = new LocalSendServer(53317); lsServer.start();
+            lsDiscovery = new LocalSendDiscovery(this); lsDiscovery.start();
+            startedServices.add("LocalSend");
+        } catch (Exception e) { lastError += "LocalSend: " + e.getMessage() + "\n"; ok = false; }
         running = ok || startedServices.contains("Web");
+
+        if (running && SettingsManager.isSilentKeepAlive()) {
+            silentPlayer = new SilentPlayer();
+            silentPlayer.start();
+        }
     }
 
 
+    // 使用 AlarmManager 定时唤醒，防止被系统清理后彻底死亡
+    private void setupAlarmKeepAlive() {
+        try {
+            AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+            if (am == null) return;
+            Intent intent = new Intent(this, AlarmReceiver.class);
+            int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+            if (Build.VERSION.SDK_INT >= 23) flags |= PendingIntent.FLAG_IMMUTABLE;
+            PendingIntent pi = PendingIntent.getBroadcast(this, 0, intent, flags);
+            
+            // 每 5 分钟触发一次唤醒检查
+            long interval = 5 * 60 * 1000L;
+            if (Build.VERSION.SDK_INT >= 23) {
+                am.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                        SystemClock.elapsedRealtime() + interval, pi);
+            } else {
+                am.setRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                        SystemClock.elapsedRealtime() + interval, interval, pi);
+            }
+        } catch (Exception ignored) {}
+    }
+
+
+
+    private android.content.BroadcastReceiver screenReceiver = new android.content.BroadcastReceiver() {
+        @Override
+        public void onReceive(android.content.Context context, android.content.Intent intent) {
+            if (intent.getAction().equals(android.content.Intent.ACTION_SCREEN_OFF)) {
+                try {
+                    Intent activityIntent = new Intent(context, OnePixelActivity.class);
+                    activityIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    context.startActivity(activityIntent);
+                } catch (Exception ignored) {}
+            } else if (intent.getAction().equals(android.content.Intent.ACTION_SCREEN_ON)) {
+                // 屏幕亮起时关闭 OnePixelActivity
+                try {
+                    android.app.ActivityManager am = (android.app.ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
+                    if (am != null) {
+                        for (android.app.ActivityManager.RunningTaskInfo task : am.getRunningTasks(10)) {
+                            if (task.topActivity != null && task.topActivity.getClassName().contains("OnePixelActivity")) {
+                                // 发送一个自定义广播让 Activity 结束
+                                Intent finishIntent = new Intent("finish_one_pixel");
+                                context.sendBroadcast(finishIntent);
+                            }
+                        }
+                    }
+                } catch (Exception ignored) {}
+            }
+        }
+    };
 
     private void goForeground() {
         try {
@@ -119,10 +187,17 @@ public class HttpServerService extends Service {
     @Override public int onStartCommand(Intent i, int f, int s) { return START_STICKY; }
 
     @Override public void onDestroy() {
+        if (silentPlayer != null) { silentPlayer.stopPlayer(); silentPlayer = null; }
+        try { unregisterReceiver(screenReceiver); } catch (Exception ignored) {}
+        try { FreeTunnelManager.stop(); } catch (Exception ignored) {}
+        try { SshTunnelManager.stop(); } catch (Exception ignored) {}
         if (renewHandler != null) { renewHandler.removeCallbacks(renewRunnable); renewHandler = null; }
         if (serverHttp != null) serverHttp.stop();
         if (webDavHttp != null) webDavHttp.stopServer();
         if (ftpServer != null) ftpServer.stopServer();
+        if (dlnaServer != null) dlnaServer.stopServer();
+        if (lsServer != null) lsServer.stop();
+        if (lsDiscovery != null) lsDiscovery.stopDiscovery();
         if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
         if (wifiLock != null && wifiLock.isHeld()) wifiLock.release();
         running = false;
