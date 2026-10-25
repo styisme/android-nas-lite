@@ -74,7 +74,7 @@ public class FtpServer extends Thread {
                                     if (rule.equals(clientIp)) { allowed = true; break; }
                                 }
                             }
-                            if (!allowed) { reply("421 IP Blocked by Whitelist"); break; }
+                            if (!allowed) { reply("421 IP Blocked by Whitelist"); return; }
                         }
                 String line;
                 while ((line = reader.readLine()) != null) {
@@ -89,8 +89,7 @@ public class FtpServer extends Thread {
                     if (cmd.equals("USER")) { currentUser = arg; reply("331 Password required"); }
                     else if (cmd.equals("PASS")) {
                         String enc = android.util.Base64.encodeToString((currentUser + ":" + arg).getBytes("UTF-8"), android.util.Base64.NO_WRAP);
-                        String clientIp = controlSocket.getInetAddress().getHostAddress();
-                        if (SettingsManager.isFail2BanEnabled() && SecurityFilter.isBlocked(clientIp)) { reply("421 Too many attempts."); break; }
+                        if (SettingsManager.isFail2BanEnabled() && SecurityFilter.isBlocked(clientIp)) { reply("421 Too many attempts."); return; }
                         if (AuthManager.verifyRole("Basic " + enc) > 0) {
                             SecurityFilter.recordSuccess(clientIp, currentUser);
                             loggedIn = true;

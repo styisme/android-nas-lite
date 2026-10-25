@@ -40,7 +40,7 @@ public class NasHttpServer extends NanoHTTPD {
                 if (list != null) { for (String rule : list.split(",")) { rule = rule.trim(); if (rule.endsWith("*") && clientIp.startsWith(rule.substring(0, rule.length() - 1))) { allowed = true; break; } if (rule.equals(clientIp)) { allowed = true; break; } } }
                 if (!allowed) return text(Response.Status.FORBIDDEN, "IP Blocked by Whitelist");
             }
-            if (SettingsManager.isFail2BanEnabled() && SecurityFilter.isBlocked(clientIp)) return text(Response.Status.TOO_MANY_REQUESTS, "Too many attempts. IP Blocked.");
+            if (SettingsManager.isFail2BanEnabled() && SecurityFilter.isBlocked(clientIp)) return text(Response.Status.SERVICE_UNAVAILABLE, "Too many attempts. IP Blocked.");
             int role = 1;
             if (!Method.OPTIONS.equals(session.getMethod())) {
                 role = AuthManager.verifyRole(session.getHeaders().get("authorization"));
