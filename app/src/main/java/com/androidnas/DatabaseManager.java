@@ -9,7 +9,24 @@ import java.security.MessageDigest;
 import java.security.SecureRandom;
 
 public class DatabaseManager extends SQLiteOpenHelper {
-    public static boolean isDefaultPwd = true; // 用于前端提示
+    public static boolean isDefaultPwd = true; // 兼容旧引用，真正的判定使用 isDefaultPassword()
+    public static boolean isDefaultPassword() {
+        try {
+            DatabaseManager inst = getInstance();
+            if (inst == null) return true;
+            SQLiteDatabase db = inst.getReadableDatabase();
+            Cursor c = db.rawQuery("SELECT password, salt FROM users WHERE username='admin'", null);
+            boolean ok = true;
+            if (c.moveToFirst()) {
+                String h = c.getString(0);
+                String s = c.getString(1);
+                if (s == null) s = "";
+                ok = h.equals(hash("admin", s));
+            }
+            c.close();
+            return ok;
+        } catch (Exception e) { return true; }
+    }
     private static final String DB_NAME = "nas_core.db";
     private static final int DB_VERSION = 2;
     private static DatabaseManager instance;

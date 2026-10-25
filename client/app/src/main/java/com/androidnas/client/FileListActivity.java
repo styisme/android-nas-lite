@@ -369,8 +369,9 @@ public class FileListActivity extends AppCompatActivity {
                     }
                     
                     // 分片上传
-                    is = new java.io.FileInputStream(cache != null ? cache : new File(uri.getPath())); // 如果是 content:// 需要重新打开
-                    if (cache == null) {
+                    if (cache != null) {
+                        is = new java.io.FileInputStream(cache);
+                    } else {
                         is.close();
                         is = getContentResolver().openInputStream(uri);
                     }

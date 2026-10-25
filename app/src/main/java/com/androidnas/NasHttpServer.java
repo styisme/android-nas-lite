@@ -19,8 +19,11 @@ public class NasHttpServer extends NanoHTTPD {
         String userRoot = DatabaseManager.getInstance().getUserRoot(user);
         File rootDir = new File(ROOT, userRoot);
         if (!rootDir.exists()) rootDir.mkdirs();
-        File f = new File(rootDir, path);
-        String c = f.getCanonicalPath(); String r = rootDir.getCanonicalPath();
+        // 核心修复：剥离前导斜杠，避免 new File(parent, "/abs") 忽略 parent
+        String rel = path.replaceAll("^/+", "");
+        File f = new File(rootDir, rel);
+        String c = f.getCanonicalPath();
+        String r = rootDir.getCanonicalPath();
         if (!c.equals(r) && !c.startsWith(r + File.separator)) return null;
         return f;
     }
@@ -48,7 +51,7 @@ public class NasHttpServer extends NanoHTTPD {
                 SecurityFilter.recordSuccess(clientIp, AuthManager.getCurrentUser());
             }
             if ("/".equals(uri) || "/index.html".equals(uri)) return newFixedLengthResponse(Response.Status.OK, "text/html; charset=utf-8", getClass().getClassLoader().getResourceAsStream("assets/index.html"), -1);
-            if ("/api/status".equals(uri)) return newFixedLengthResponse(Response.Status.OK, "application/json", "{\"lowPower\":" + SettingsManager.isLowPowerMode() + ",\"clipboardEnabled\":" + SettingsManager.isClipboardEnabled() + ",\"globalMode\":" + SettingsManager.isGlobalMode() + ",\"httpsEnabled\":" + SettingsManager.isHttpsEnabled() + ",\"isDefaultPwd\":" + DatabaseManager.isDefaultPwd + ",\"fail2ban\":" + SettingsManager.isFail2BanEnabled() + ",\"pinRequired\":" + SettingsManager.isPinRequired() + ",\"auditEnabled\":" + SettingsManager.isAuditEnabled() + ",\"ipWhitelistEnabled\":" + SettingsManager.isIpWhitelistEnabled() + ",\"ipWhitelist\":\"" + SettingsManager.getIpWhitelist() + "\"}");
+            if ("/api/status".equals(uri)) return newFixedLengthResponse(Response.Status.OK, "application/json", "{\"lowPower\":" + SettingsManager.isLowPowerMode() + ",\"clipboardEnabled\":" + SettingsManager.isClipboardEnabled() + ",\"globalMode\":" + SettingsManager.isGlobalMode() + ",\"httpsEnabled\":" + SettingsManager.isHttpsEnabled() + ",\"isDefaultPwd\":" + DatabaseManager.isDefaultPassword() + ",\"fail2ban\":" + SettingsManager.isFail2BanEnabled() + ",\"pinRequired\":" + SettingsManager.isPinRequired() + ",\"auditEnabled\":" + SettingsManager.isAuditEnabled() + ",\"ipWhitelistEnabled\":" + SettingsManager.isIpWhitelistEnabled() + ",\"ipWhitelist\":\"" + SettingsManager.getIpWhitelist() + "\"}");
             if ("/api/monitor".equals(uri)) return text(Response.Status.NOT_FOUND, "Monitor removed in Lite");
             if ("/api/ota".equals(uri)) return newFixedLengthResponse(Response.Status.OK, "application/json", "{\"version\":\"4.4.0-lite.1\"}");
             if ("/api/settings".equals(uri)) {
@@ -132,7 +135,25 @@ public class NasHttpServer extends NanoHTTPD {
                     } catch (Exception e) { return text(Response.Status.BAD_REQUEST, "Invalid params"); }
                 }
                 if ("/api/password".equals(uri)) { String pwd = session.getParms().get("password"); if (pwd != null && pwd.length() > 0) { DatabaseManager.getInstance().changePassword(AuthManager.getCurrentUser(), pwd); return text(Response.Status.OK, "OK"); } return text(Response.Status.BAD_REQUEST, "Empty password"); }
-                if ("/api/share".equals(uri)) { String path = session.getParms().get("path"); if (safeFile(path) == null) return text(Response.Status.FORBIDDEN, "No access"); String token = UUID.randomUUID().toString().replace("-", "").substring(0, 16); ShareInfo info = new ShareInfo(); info.owner = AuthManager.getCurrentUser(); info.path = path; info.expire = System.currentTimeMillis() + 86400000L; sharedLinks.put(token, info); return text(Response.Status.OK, token); }
+                if ("/api/share".equals(uri)) {
+                    String path = session.getParms().get("path");
+                    if (safeFile(path) == null) return text(Response.Status.FORBIDDEN, "No access");
+                    String token = UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+                    ShareInfo info = new ShareInfo();
+                    info.owner = AuthManager.getCurrentUser();
+                    info.path = path;
+                    long expireMs = 86400000L;
+                    try {
+                        String e = session.getParms().get("expire");
+                        if (e != null && !e.trim().isEmpty()) {
+                            long v = Long.parseLong(e.trim());
+                            if (v > 0) expireMs = v;
+                        }
+                    } catch (Exception ignored) {}
+                    info.expire = System.currentTimeMillis() + expireMs;
+                    sharedLinks.put(token, info);
+                    return text(Response.Status.OK, token);
+                }
                 if ("/api/unzip".equals(uri)) { File f = safeFile(session.getParms().get("path")); if (f != null && unzip(f)) return text(Response.Status.OK, "OK"); return text(Response.Status.INTERNAL_ERROR, "Failed"); }
                 if ("/api/webhook/test".equals(uri)) { WebhookManager.send("测试通知", "这是一条测试消息！"); return text(Response.Status.OK, "OK"); }
                 if ("/api/shell".equals(uri)) return text(Response.Status.FORBIDDEN, "Shell removed in Lite");

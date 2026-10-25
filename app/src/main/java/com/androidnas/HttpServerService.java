@@ -78,8 +78,10 @@ public class HttpServerService extends Service {
     private void startCleanupTask() {
         new Thread(new Runnable() {
             @Override public void run() {
-                while (true) {
-                    try { Thread.sleep(6 * 60 * 60 * 1000L); File root = Environment.getExternalStorageDirectory(); cleanOldParts(root, 0); } catch (Exception ignored) {}
+                while (running) {
+                    try { Thread.sleep(6 * 60 * 60 * 1000L); } catch (InterruptedException ie) { break; } catch (Exception ignored) {}
+                    if (!running) break;
+                    try { File root = Environment.getExternalStorageDirectory(); cleanOldParts(root, 0); } catch (Exception ignored) {}
                 }
             }
         }).start();

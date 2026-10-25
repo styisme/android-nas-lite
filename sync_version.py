@@ -13,11 +13,16 @@ def get_latest_version():
         return None, None
     with open(CHANGELOG_PATH, "r", encoding="utf-8") as f:
         content = f.read()
-    match = re.search(r'##\s*\[?v?(\d+\.\d+\.\d+)\]?', content)
+    match = re.search(r'##\s*\[?v?(\d+\.\d+\.\d+(?:-lite\.\d+)?)\]?', content)
     if not match: return None, None
     version_name = match.group(1)
-    parts = version_name.split('.')
-    version_code = str(int(parts[0]) * 10000 + int(parts[1]) * 100 + int(parts[2]))
+    base = version_name.split('-')[0]
+    parts = base.split('.')
+    lite_suffix = 0
+    lm = re.search(r'-lite\.(\d+)$', version_name)
+    if lm:
+        lite_suffix = int(lm.group(1))
+    version_code = str(int(parts[0]) * 100000 + int(parts[1]) * 1000 + int(parts[2]) * 10 + lite_suffix)
     return version_name, version_code
 
 def update_file(rel_path, pattern, replacement):
@@ -45,7 +50,7 @@ if __name__ == "__main__":
     update_file("app/src/main/java/com/androidnas/NasHttpServer.java", r'\\"version\\":\\"[^"]+\\"', f'\\"version\\":\\"{version_name}\\"')
 
     # 3. 前端 index.html (OTA 检查与关于页面)
-    update_file("app/src/main/assets/index.html", r'当前版本: v\d+\.\d+\.\d+', f'当前版本: v{version_name}')
+    update_file("app/src/main/assets/index.html", r'当前版本: v[0-9a-zA-Z\.\-]+', f'当前版本: v{version_name}')
     update_file("app/src/main/assets/index.html", r'版本: v\d+\.\d+\.\d+ 旗舰版', f'版本: v{version_name} 旗舰版')
     update_file("app/src/main/assets/index.html", r'data\.version === "\d+\.\d+\.\d+"', f'data.version === "{version_name}"')
 

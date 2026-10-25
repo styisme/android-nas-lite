@@ -12,7 +12,7 @@ android {
     compileSdk 33
 
     defaultConfig {
-        applicationId "com.androidnas.all.tv"
+        applicationId "com.androidnas.lite.tv"
         minSdk 19
         targetSdk 33
         versionCode 1
