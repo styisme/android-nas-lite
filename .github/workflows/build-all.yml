@@ -133,7 +133,7 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: '3.10' }
       - name: Install Dependencies
-        run: pip install 'requests>=2.28,<3' 'pyinstaller>=5.13,<6'
+        run: pip install 'requests>=2.28,<3' 'pyinstaller>=5.13,<6' 'pystray' 'pillow'
       - name: Build GUI
         if: matrix.target == 'gui'
         shell: bash
@@ -201,7 +201,6 @@ jobs:
           find ./all_artifacts/server-apk -type f -name "*.apk" -exec cp {} release_files/AndroidNAS-Server-$VERSION.apk \; || true
           find ./all_artifacts/client-apk -type f -name "*.apk" -exec cp {} release_files/AndroidNAS-Client-$VERSION.apk \; || true
           find ./all_artifacts/tv-apk -type f -name "*.apk" -exec cp {} release_files/AndroidNAS-TV-$VERSION.apk \; || true
-          find ./all_artifacts/watch-apk -type f -name "*.apk" -exec cp {} release_files/AndroidNAS-Watch-$VERSION.apk \; || true
           
           # PC端 Windows
           find ./all_artifacts/desktop-windows -type f -name "*.exe" -exec cp {} release_files/AndroidNAS-Desktop-Windows-$VERSION.exe \; || true
@@ -210,8 +209,6 @@ jobs:
           find ./all_artifacts/desktop-linux -type f -exec cp {} release_files/AndroidNAS-Desktop-Linux-$VERSION \; || true
           
           # 额外生态
-          find ./all_artifacts/browser-extension -type f -name "*.zip" -size +0c -exec cp {} release_files/Browser-Extension.zip \; || true
-          find ./all_artifacts/wechat-miniprogram -type f -name "*.zip" -size +0c -exec cp {} release_files/WeChat-MiniProgram.zip \; || true
           
           echo "====== 即将发布的文件列表 ======"
           ls -la release_files/
@@ -220,16 +217,59 @@ jobs:
         if: steps.check_tag.outputs.skip_release == 'false'
         run: |
           VERSION=$(grep -oP '##\s*\[?v?\K[0-9a-zA-Z\.-]+' CHANGELOG.md | head -1)
-          
-          # 提取最新的更新日志部分
           awk '/^## \[/{count++} count==1{print}' CHANGELOG.md | tail -n +2 > changelog_body.md
-          
           cat << EOF > release_notes.md
           ## 👑 Android NAS Lite v${VERSION} 正式发布！
-          
           **把吃灰的 Android 手机变成一个干净、稳定、可长期挂机的局域网文件服务器。**
-          
           这是 Android NAS 的精简版，基于完整版剥离了高风险与低使用率功能，只保留最核心的文件服务。
+          ---
+          ### 🚀 核心更新亮点
+          EOF
+          cat changelog_body.md >> release_notes.md
+          cat << EOF >> release_notes.md
+          ---
+          ### 📦 安装包下载指南 (Assets)
+          请直接点击下方对应的文件下载（所有端版本号均已同步）：
+          - 📱 **服务端 (旧手机)**：`AndroidNAS-Server-v${VERSION}.apk`
+          - 🖥️ **手机客户端 (主力机)**：`AndroidNAS-Client-v${VERSION}.apk`
+          - 📺 **TV 电视端**：`AndroidNAS-TV-v${VERSION}.apk`
+          - 💻 **Windows GUI**：`AndroidNAS-Desktop-Windows-v${VERSION}.exe`
+          - 🐧 **Linux GUI**：`AndroidNAS-Desktop-Linux-v${VERSION}`
+          ---
+          ### ⚠️ 安全提示
+          1. **明文传输**：局域网默认明文 HTTP。请勿将端口直接暴露公网，公网访问请自行配置 TLS 穿透。
+          2. **账号限制**：系统仅保留 `admin` 与 `guest` 双账号。
+          3. **保活边界**：Lite 版不包含激进保活。若掉线请将应用设为“无限制”。
+          ---
+          **Enjoy your personal cloud! 如果觉得项目对你有帮助，欢迎点一个 ⭐ Star！**
+          EOF > release_notes.md
+          ## 👑 Android NAS Lite v${VERSION} 正式发布！
+          **把吃灰的 Android 手机变成一个干净、稳定、可长期挂机的局域网文件服务器。**
+          这是 Android NAS 的精简版，基于完整版剥离了高风险与低使用率功能，只保留最核心的文件服务。
+          ---
+          ### 🚀 核心更新亮点
+          EOF
+          cat changelog_body.md >> release_notes.md
+          cat << EOF >> release_notes.md
+          ---
+          ### 📦 安装包下载指南 (Assets)
+          请直接点击下方对应的文件下载（所有端版本号均已同步）：
+          - 📱 **服务端 (旧手机)**：`AndroidNAS-Server-v${VERSION}.apk`
+          - 🖥️ **手机客户端 (主力机)**：`AndroidNAS-Client-v${VERSION}.apk`
+          - 📺 **TV 电视端**：`AndroidNAS-TV-v${VERSION}.apk`
+          - 💻 **Windows GUI**：`AndroidNAS-Desktop-Windows-v${VERSION}.exe`
+          - 🐧 **Linux GUI**：`AndroidNAS-Desktop-Linux-v${VERSION}`
+          ---
+          ### ⚠️ 安全提示
+          1. **明文传输**：局域网默认明文 HTTP。请勿将端口直接暴露公网，公网访问请自行配置 TLS 穿透。
+          2. **账号限制**：系统仅保留 `admin` 与 `guest` 双账号。
+          3. **保活边界**：Lite 版不包含激进保活。若掉线请将应用设为“无限制”。
+          ---
+          **Enjoy your personal cloud! 如果觉得项目对你有帮助，欢迎点一个 ⭐ Star！**
+          EOF > release_notes.md
+          ## 👑 Android NAS v${VERSION} 正式发布！
+          
+          **十端生态矩阵：全平台私有云控制中枢**
           
           ---
           
@@ -246,25 +286,27 @@ jobs:
           
           请直接点击下方对应的文件下载（所有端版本号均已同步）：
           
-          - 📱 **服务端 (旧手机)**：\`AndroidNAS-Server-v${VERSION}.apk\`
-          - 🖥️ **手机客户端 (主力机)**：\`AndroidNAS-Client-v${VERSION}.apk\`
-          - 📺 **TV 电视端**：\`AndroidNAS-TV-v${VERSION}.apk\`
-          - 💻 **Windows GUI**：\`AndroidNAS-Desktop-Windows-v${VERSION}.exe\`
-          - 🐧 **Linux GUI**：\`AndroidNAS-Desktop-Linux-v${VERSION}\`
+          - 📱 **服务端 (旧手机)**：`AndroidNAS-Server-${{ steps.check_tag.outputs.version }}.apk`
+          - 🖥️ **手机客户端 (主力机)**：`AndroidNAS-Client-${{ steps.check_tag.outputs.version }}.apk`
+          - 📺 **TV 电视端**：`AndroidNAS-TV-${{ steps.check_tag.outputs.version }}.apk`
+          - 💻 **Windows GUI**：`AndroidNAS-Desktop-Windows-${{ steps.check_tag.outputs.version }}.exe`
+          - 🐧 **Linux GUI**：`AndroidNAS-Desktop-Linux-${{ steps.check_tag.outputs.version }}`
+          
+          *(注：苹果与鸿蒙端需使用开发者工具自行编译签名。)*
           
           ---
           
-          ### ⚠️ 安全提示
+          ### ⚠️ 安全与高危警告
           
-          1. **明文传输**：局域网默认明文 HTTP。请勿将端口直接暴露公网，公网访问请自行配置 TLS 穿透。
-          2. **账号限制**：系统仅保留 \`admin\` 与 \`guest\` 双账号。
-          3. **保活边界**：Lite 版不包含激进保活。若掉线请将应用设为“无限制”。
+          1. **全盘模式与远控的危险性**：开启 Web Shell、H264 远控或 Root 免死保活时，应用将拥有极高的系统权限。**请绝对不要在公共 WiFi 下暴露远控端口**。
+          2. **保活模块冲突**：若刷入了 Magisk 特权模块，可能会导致系统安装器提示“应用未卸载”。请进入 Magisk 临时关闭模块并重启后，使用 `pm uninstall` 强删。
+          3. **明文传输**：局域网传输默认明文 HTTP。公网访问请务必自建 SSH 穿透进行加密。
           
           ---
           
           **Enjoy your personal cloud! 如果觉得项目对你有帮助，欢迎点一个 ⭐ Star！**
           EOF
-
+          
       - name: Create GitHub Release
         if: steps.check_tag.outputs.skip_release == 'false'
         uses: softprops/action-gh-release@v2

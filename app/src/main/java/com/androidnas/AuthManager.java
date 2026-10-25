@@ -21,6 +21,8 @@ public class AuthManager {
     }
     
     public static String getCurrentUser() { return currentUser.get(); }
+    
+    // 核心修复：暴露 set 方法，解决 NasHttpServer 编译失败
     public static void setCurrentUser(String user) { currentUser.set(user); }
     public static void clearCurrentUser() { currentUser.remove(); }
 

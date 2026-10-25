@@ -1,20 +1,26 @@
 package com.androidnas.client;
-
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.widget.RadioGroup;
+import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.materialswitch.MaterialSwitch;
 import com.google.android.material.textfield.TextInputEditText;
-
+import okhttp3.Credentials;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 public class SettingsActivity extends AppCompatActivity {
     private SharedPreferences sp;
     private TextInputEditText etPort, etTimeout;
     private MaterialSwitch switchAutoScan;
-
+    private OkHttpClient client = new OkHttpClient();
+    private Handler handler = new Handler(Looper.getMainLooper());
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
         setContentView(R.layout.activity_settings);
@@ -24,9 +30,7 @@ public class SettingsActivity extends AppCompatActivity {
         toolbar.setNavigationOnClickListener(v -> finish());
         RadioGroup g = findViewById(R.id.themeGroup);
         int t = sp.getInt("theme", 0);
-        if (t == 1) g.check(R.id.radioLight);
-        else if (t == 2) g.check(R.id.radioDark);
-        else g.check(R.id.radioSystem);
+        if (t == 1) g.check(R.id.radioLight); else if (t == 2) g.check(R.id.radioDark); else g.check(R.id.radioSystem);
         g.setOnCheckedChangeListener((gg, id) -> {
             int m = 0;
             if (id == R.id.radioLight) { m = 1; AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO); }
@@ -38,23 +42,13 @@ public class SettingsActivity extends AppCompatActivity {
         switchAutoScan = findViewById(R.id.switchAutoScan);
         etPort.setText(String.valueOf(sp.getInt("scan_port", 8080)));
         etTimeout.setText(String.valueOf(sp.getInt("scan_timeout", 500)));
-        if (switchAutoScan != null) {
-            switchAutoScan.setChecked(sp.getBoolean("auto_scan", true));
-            switchAutoScan.setOnCheckedChangeListener((v, c) -> sp.edit().putBoolean("auto_scan", c).apply());
-        }
+        if (switchAutoScan != null) { switchAutoScan.setChecked(sp.getBoolean("auto_scan", true)); switchAutoScan.setOnCheckedChangeListener((v, c) -> sp.edit().putBoolean("auto_scan", c).apply()); }
     }
-
     @Override protected void onPause() {
         super.onPause();
         try {
-            if (etPort != null) {
-                String s = etPort.getText() != null ? etPort.getText().toString().trim() : "";
-                if (!s.isEmpty()) { int p = Integer.parseInt(s); if (p >= 1 && p <= 65535) sp.edit().putInt("scan_port", p).apply(); }
-            }
-            if (etTimeout != null) {
-                String s = etTimeout.getText() != null ? etTimeout.getText().toString().trim() : "";
-                if (!s.isEmpty()) { int t = Integer.parseInt(s); if (t > 0 && t <= 60000) sp.edit().putInt("scan_timeout", t).apply(); }
-            }
+            if (etPort != null) { String s = etPort.getText() != null ? etPort.getText().toString().trim() : ""; if (!s.isEmpty()) { int p = Integer.parseInt(s); if (p >= 1 && p <= 65535) sp.edit().putInt("scan_port", p).apply(); } }
+            if (etTimeout != null) { String s = etTimeout.getText() != null ? etTimeout.getText().toString().trim() : ""; if (!s.isEmpty()) { int t = Integer.parseInt(s); if (t > 0 && t <= 60000) sp.edit().putInt("scan_timeout", t).apply(); } }
         } catch (Exception ignored) {}
     }
 }
