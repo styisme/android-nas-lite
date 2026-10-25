@@ -2,7 +2,9 @@
 
 感谢参与 Android NAS Lite 的开发！本项目是 [完整版](https://github.com/styisme/android-nas) 的精简分支，专注于“文件服务主线”。在提交任何代码之前，请仔细阅读以下核心规范、架构说明以及开发注意事项。
 
-## ⚠️ 关于 AI 生成代码的严正声明
+## ⚠️ 关于 AI 生成代码
+> **⚠️ 开发环境约束**：本项目的开发环境极度受限（无本地 IDE、无 PR 流程、直推 master）。请在提交 PR 前务必阅读 [`DEVELOPMENT_CONSTRAINTS.md`](DEVELOPMENT_CONSTRAINTS.md)，了解实际执行的门禁与测试状态。
+的严正声明
 
 本项目 99% 以上的代码（包括 Java, Python, HTML, YAML 等）由大型语言模型（LLM）直接输出，人类开发者主要担任“产品经理”与“测试工程师”。提交 PR 时请务必遵循以下原则：
 1. **必须经过真机测试**：AI 极易写出大括号不匹配、Lambda 表达式受检异常未捕获、或跨线程操作 UI 的代码。请务必确保代码在你的本地或云端编译通过，且功能在物理设备上验证正常。
@@ -14,7 +16,7 @@
 
 ---
 
-## 📂 项目结构解析 (v4.3.0-lite 架构)
+## 📂 项目结构解析 (v4.4.0-lite 架构)
 
 Lite 版移除了独立端点与高危模块，当前保留 5 个核心端：
 
@@ -65,7 +67,7 @@ android-nas-lite/
 
 Lite 版高度依赖 HTTP，所有端的网络层必须严格遵守以下规范（完整细节请见 `docs/API_DOC.md`）。
 
-### 1. 统一鉴权与并发沙箱隔离 (v4.3.0 核心重构)
+### 1. 统一鉴权与并发沙箱隔离 (v4.4.0 核心重构)
 除分享链接与 Webhook 外，所有 HTTP 请求必须携带 Header：
 `Authorization: Basic Base64(账号:密码)`。
 - **`ThreadLocal` 身份隔离**：`AuthManager` 底层废弃了全局静态变量，在 `verifyRole` 时写入 `ThreadLocal`，并在请求结束的 `finally` 块中强制调用 `clearCurrentUser()` 清理。
@@ -94,14 +96,14 @@ Lite 版高度依赖 HTTP，所有端的网络层必须严格遵守以下规范�
 Lite 版采用跟随式发版机制，发版过程全自动化：
 
 1. **同步并精简代码**：在完整版发布大版本后，重新生成 Lite 版代码。
-2. **修改更新日志**：在 `CHANGELOG.md` 顶部增加新版本号（格式为 `## [4.3.0-lite.1]`）及精简说明。
+2. **修改更新日志**：在 `CHANGELOG.md` 顶部增加新版本号（格式为 `## [4.4.0-lite.1]`）及精简说明。
 3. **推送代码**：Push 到 `main` 或 `master` 分支。
 4. **自动矩阵编译**：GitHub Actions 会检测到 `CHANGELOG.md` 的变更，触发 `build-all.yml`。并行编译 4 个 job（server, client, tv, pc）。
 5. **包名与签名**：
    - Lite 版包名已迁移至 `com.androidnas.lite.*`。
    - 日常构建自动加 `.debug` 后缀。
-   - 全量发版触发 `assembleRelease`，使用 GitHub Secrets 注入 keystore。*(注：v4.3.0 修复了未配置密钥时 Gradle 误判导致 `Keystore file not found` 崩溃的问题)*。
-6. **自动打 Tag**：CI 正则支持提取带后缀的版本号（如 `v4.3.0-lite.1`），并自动打上 Git Tag。
+   - 全量发版触发 `assembleRelease`，使用 GitHub Secrets 注入 keystore。*(注：v4.4.0 修复了未配置密钥时 Gradle 误判导致 `Keystore file not found` 崩溃的问题)*。
+6. **自动打 Tag**：CI 正则支持提取带后缀的版本号（如 `v4.4.0-lite.1`），并自动打上 Git Tag。
 7. **平铺直传发布**：CI 脚本使用 `find -type f` 提取产物并重命名，平铺展示在 GitHub Release 页面。
 
 ---

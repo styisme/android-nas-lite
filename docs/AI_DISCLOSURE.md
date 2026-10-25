@@ -11,7 +11,7 @@
 ## AI 参与的具体部分（Lite 版及完整版）
 
 ### 1. 完整版核心业务代码（Lite 版完整继承）
-- **服务端核心安全与架构 (v4.3.0 核心重构)**：
+- **服务端核心安全与架构 (v4.4.0 核心重构)**：
   - `AuthManager.java`：引入 `ThreadLocal` 存储当前请求身份，废弃全局静态变量，在 `finally` 块强制清理，彻底解决并发越权漏洞。
   - `DatabaseManager.java`：强制剥离 `root_dir` 前导斜杠，配合 `getCanonicalPath` 封死沙箱逃逸；新增秒传路径校验，防止跨用户投毒。
   - `NasHttpServer.java`：引入 `LimitedInputStream` 修复视频 Range 请求的句柄泄漏；移除分片上传错误的 `parseBody` 调用；实现短效 Share Token 鉴权。

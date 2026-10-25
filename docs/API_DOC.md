@@ -4,7 +4,7 @@
 
 由于 Lite 版移除了远程控制、多用户管理、多媒体刮削等扩展模块，因此**仅提供完整版 API 的子集**。完整版的全部接口（包括 WebSocket 远控协议）请参阅 [完整版 API 规范](https://github.com/styisme/android-nas/blob/master/docs/API_DOC.md)。
 
-以下是 Lite 版保留的完整接口规范说明（基于 v4.3.0-lite）。
+以下是 Lite 版保留的完整接口规范说明（基于 v4.4.0-lite）。
 
 ---
 
@@ -18,7 +18,7 @@
   - 除分享链接外，所有 HTTP 请求必须携带 Header：`Authorization: Basic Base64(账号:密码)`。
   - Lite 版仅内置 `admin` 与 `guest` 双账号（默认 `admin:admin`）。
   - 鉴权失败将返回 `401 Unauthorized`。
-- **并发安全与沙箱隔离 (v4.3.0 核心升级)**：
+- **并发安全与沙箱隔离 (v4.4.0 核心升级)**：
   - 底层使用 `ThreadLocal` 存储当前请求身份，请求结束时在 `finally` 块强制清理，彻底杜绝高并发下的越权串号。
   - `guest` 账号的路径会被底层强制映射并锁定在 `/Public` 目录内。
   - 所有路径强制剥离前导斜杠，配合 `getCanonicalPath` 校验，彻底封死目录穿越。
@@ -54,7 +54,7 @@
 - **Response**:
   - 若携带 Range，返回 `206 Partial Content`，并带有 `Content-Range` 头。
   - 若未携带，返回 `200 OK`，并带有 `Content-Disposition` 触发下载。
-  - **底层安全**：v4.3.0 引入了 `LimitedInputStream`，彻底修复了高并发下的句柄泄漏与越界崩溃。
+  - **底层安全**：v4.4.0 引入了 `LimitedInputStream`，彻底修复了高并发下的句柄泄漏与越界崩溃。
 
 ### 3. 表单多文件上传 (Web端使用)
 - **URL**: `/api/upload`
@@ -68,7 +68,7 @@
 - **Body**: 纯二进制流 (`application/octet-stream`)。
 - **注意**：客户端必须携带准确的 `Content-Length`。如果服务端写入异常，会触发 Drain 机制并返回明确状态码。
 
-### 5. 大文件秒传与分片上传 (v4.3.0 修复)
+### 5. 大文件秒传与分片上传 (v4.4.0 修复)
 - **秒传校验**:
   - `POST /api/upload/check`
   - Body: `hash=文件MD5`
@@ -115,7 +115,7 @@
 - **Body**:
   - `path`: 必填，文件路径。
 - **Response**: `200 OK`，返回 16 位随机 Token。
-- **底层鉴权**：v4.3.0 中，分享访问会绑定 Token 的所有者（Owner）身份进行沙箱路径解析，并加入了 24 小时强制过期校验。
+- **底层鉴权**：v4.4.0 中，分享访问会绑定 Token 的所有者（Owner）身份进行沙箱路径解析，并加入了 24 小时强制过期校验。
 
 ### 2. 访问分享
 - **URL**: `/share/{token}`
@@ -148,7 +148,7 @@
 ### 2. 获取/保存系统配置
 - **URL**: `/api/settings`
 - **Method**: `GET` / `POST`
-- **权限**：v4.3.0 补齐了严格校验，**仅 `admin` 角色可调用**。
+- **权限**：v4.4.0 补齐了严格校验，**仅 `admin` 角色可调用**。
 - **GET Response**: 返回包含 `alias`, `webPort`, `davPort`, `ftpPort`, `webdav`, `ftp`, `stream`, `clipboard`, `lowPower`, `webhookUrl`, `webhookChatId` 的 JSON。
 - **POST Body**: 包含上述字段进行更新。
 
