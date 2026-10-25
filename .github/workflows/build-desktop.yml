@@ -22,12 +22,6 @@ jobs:
           - os: windows-latest
             artifact_name: nas-client-windows
             target: gui
-          - os: ubuntu-latest
-            artifact_name: nas-cli-linux
-            target: cli
-          - os: windows-latest
-            artifact_name: nas-cli-windows
-            target: cli
 
     steps:
       - name: Checkout
