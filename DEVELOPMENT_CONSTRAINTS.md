@@ -38,6 +38,7 @@
 
 ### 测试
 - [x] **真机测试**（物理设备：旧 Android 手机 + Windows 桌面端 + TV 盒子）
+- [x] **精简后 grep 复验**（按 `CONTRIBUTING.md` 的「精简高危雷区速查」逐条扫描回归）
 - [ ] 模拟器测试（无可用模拟器环境）
 - [ ] 单元测试（项目未引入测试框架）
 
@@ -50,6 +51,7 @@
 - 本仓库代码由 AI 生成，人类开发者负责需求、真机验证与发布决策。
 - CI 编译通过仅代表语法与依赖正确，**不代表所有功能已在所有机型上可用**。
 - 本仓库从完整版精简而来，精简过程本身是脚本化、可重现的，但精简后的代码仍需每次发版前在物理设备上验证。
+- **精简回归是真实存在的风险**：`4.4.0-lite.2` 就是一次典型的回归修复版本——`lite.1` 在精简时把沙箱路径拼接写回了 `new File(rootDir, path)` 的致命反模式，导致 `admin` / `guest` 全站 404 并伴随路径穿越风险。这类回归**不会被 CI 编译拦截**，只能靠真机测试发现。
 
 ---
 
@@ -60,11 +62,14 @@
 | 模块 | 验证状态 |
 |---|---|
 | `AuthManager.java`（ThreadLocal 并发隔离） | ✅ 真机测试 |
-| `NasHttpServer.safeFile()`（路径沙箱） | ✅ 真机测试 |
+| `NasHttpServer.safeFile()`（路径沙箱，`4.4.0-lite.2` 回归修复后复验） | ✅ 真机测试 |
+| `FtpServer.safeFile()`（路径沙箱，`4.4.0-lite.2` 回归修复后复验） | ✅ 真机测试 |
 | `WebDavServer` / `FtpServer`（协议解析） | ✅ 真机测试 |
 | `DatabaseManager.hash()`（账号鉴权与加盐） | ✅ 真机测试 |
+| `DatabaseManager.isDefaultPassword()`（`4.4.0-lite.2` 动态判定替换静态变量） | ✅ 真机测试 |
 | `SecurityFilter.java`（防爆破与白名单） | ✅ 真机测试 |
-| `.github/workflows/*.yml`（签名与发布） | ✅ CI 验证通过 |
+| `NasHttpServer` 分享接口（`4.4.0-lite.2` 恢复 `expire` 参数支持） | ✅ 真机测试 |
+| `.github/workflows/build-all.yml`（签名、发布、Release Notes 生成） | ✅ CI 验证通过（`4.4.0-lite.2` 修复 heredoc 断裂后复验） |
 
 > 已移除模块（不在本仓库中）：`RemoteDesktopManager`、`AdvancedKeepAliveManager`、`MediaScraper`、`ThumbnailManager`、`SystemMonitor`、`DlnaServer`、`LocalSendServer`、`FreeTunnelManager`、`SshTunnelManager`、`SilentPlayer`、`AlarmReceiver`、`OnePixelActivity`。
 > 如需上述模块的验证状态，请参阅完整版仓库。
@@ -74,7 +79,7 @@
 ## 五、我们承认这不完美
 
 形式化的 PR 流程、逐行代码审阅、本地静态分析，这些在本仓库中**全部缺位**。
-我们用「**披露 + CI 门禁 + 物理删除高危功能 + 真机验证**」承担了实质责任，而不是假装做到了所有形式责任。
+我们用「**披露 + CI 门禁 + 物理删除高危功能 + 真机验证 + 精简后 grep 复验**」承担了实质责任，而不是假装做到了所有形式责任。
 这是约束下的选择，不是对标准的否定。
 
 ---
@@ -88,5 +93,6 @@
 3. **能做的门禁不绕过**（有 CI 就卡 CI，没有就靠人工）
 4. **测试状态如实标注**（做了就勾，没做就写"未测试"）
 5. **敏感模块清单公开**（让外部能核对你测过什么）
+6. **精简式维护必须有复验清单**（字符串裁剪最大的敌人是"看起来没坏"）
 
-五件事做到了，你就已经承担了人类责任。
+六件事做到了，你就已经承担了人类责任。

@@ -4,7 +4,7 @@
 
 由于 Lite 版移除了远程控制、多用户管理、多媒体刮削等扩展模块，因此**仅提供完整版 API 的子集**。完整版的全部接口（包括 WebSocket 远控协议）请参阅 [完整版 API 规范](https://github.com/styisme/android-nas/blob/master/docs/API_DOC.md)。
 
-以下是 Lite 版保留的完整接口规范说明（基于 v4.4.0-lite）。
+以下是 Lite 版保留的完整接口规范说明（基于 **v4.4.0-lite.2**）。
 
 ---
 
@@ -21,7 +21,8 @@
 - **并发安全与沙箱隔离 (v4.4.0 核心升级)**：
   - 底层使用 `ThreadLocal` 存储当前请求身份，请求结束时在 `finally` 块强制清理，彻底杜绝高并发下的越权串号。
   - `guest` 账号的路径会被底层强制映射并锁定在 `/Public` 目录内。
-  - 所有路径强制剥离前导斜杠，配合 `getCanonicalPath` 校验，彻底封死目录穿越。
+  - **`safeFile()` 路径映射（v4.4.0-lite.2 回归修复）**：所有路径必须先经 `replaceAll("^/+", "")` 剥离前导斜杠，再 `new File(rootDir, rel)` 拼接，最后用 `getCanonicalPath` 校验。
+    - ⚠️ **禁止写法**：`new File(rootDir, "/abs/path")`。Java `File` 构造器遇到绝对路径的第二个参数时**会直接忽略第一个参数**，导致 `admin` / `guest` 全站 404，且会被 `getCanonicalPath` 判定为沙箱逃逸。`FtpServer.safeFile()` 同源同罪。
 - **响应格式**：除流媒体下载、纯文本预览外，所有响应均为 JSON 格式。
 
 ---
@@ -60,7 +61,7 @@
 - **URL**: `/api/upload`
 - **Method**: `POST`
 - **Body**: `multipart/form-data` 格式。需包含 `path` 字段（目标目录）与一个或多个 `file` 字段。
-- **Response**: `200 OK`，返回字符串 `OK: filename.ext`。
+- **Response**: `200 OK`，返回字符串 `OK`。
 
 ### 4. 客户端流式 PUT 上传 (手机端/桌面端使用)
 - **URL**: `/*` (任意文件路径，如 `/Movies/new.mp4`)
@@ -72,13 +73,14 @@
 - **秒传校验**:
   - `POST /api/upload/check`
   - Body: `hash=文件MD5`
-  - 返回: `SECONDS_UPLOAD:/path/to/file`（秒传成功，服务端已有该文件）或 `NEED_UPLOAD`（需要继续上传）。
-  - **防投毒**：服务端会校验该 Hash 的路径归属，防止跨用户命中。
+  - 返回: `SECONDS_UPLOAD`（秒传成功，服务端已有该文件）或 `NEED_UPLOAD`（需要继续上传）。
+  - **防投毒**：服务端会校验该 Hash 的路径归属（`getPathByHash(hash, userRoot)`），防止跨用户命中。
 - **分片上传**:
   - `POST /api/upload/chunk`
   - Params: `hash=文件MD5`, `index=当前分片序号`, `total=总分片数`, `name=文件名`, `path=目标目录`
   - Body: 纯二进制分片数据（通常为 2MB 块）。
   - **修复说明**：服务端已移除 `parseBody` 调用，避免二进制流被 NanoHTTPD 拦截消费。临时文件命名为 `fileName.hash.part`，彻底防止并发覆盖损坏。
+  - **客户端约束**：Android 端分片上传时若需重开输入流，**禁止**使用 `new File(uri.getPath())`（对 `content://` URI 会抛 `FileNotFoundException`），必须通过 `getContentResolver().openInputStream(uri)` 重开。
 
 ### 6. 多选流式打包下载
 - **URL**: `/api/download/zip`
@@ -97,13 +99,13 @@
 - **新建文件夹**: `POST /api/mkdir`，Body: `path=/当前目录&name=新目录名`
 - **重命名**: `POST /api/rename`，Body: `path=/旧路径&newName=新名字`
 - **递归删除**: `POST /api/delete`，Body: `path=/目标路径`
-- **在线保存文本**: `POST /api/save`，Body: `path=/文件路径&content=新的内容`
+- **在线保存文本**: `POST /api/save`，Body: `path=/文件路径&content=新的内容`（服务端会先写入 `.bak_<时间戳>` 备份）
 
 ### 9. 在线解压 ZIP
 - **URL**: `/api/unzip`
 - **Method**: `POST`
 - **Body**: `path=/目标zip文件路径.zip`
-- **Response**: `200 OK` (内置了路径穿越校验，解压安全)
+- **Response**: `200 OK`（内置了 `getCanonicalPath` 穿越校验，解压安全）
 
 ---
 
@@ -114,13 +116,16 @@
 - **Method**: `POST`
 - **Body**:
   - `path`: 必填，文件路径。
+  - `expire`: 选填，有效期毫秒数（如 `86400000` 表示 1 天）。缺省为 24 小时。**(v4.4.0-lite.2 恢复支持)**
 - **Response**: `200 OK`，返回 16 位随机 Token。
-- **底层鉴权**：v4.4.0 中，分享访问会绑定 Token 的所有者（Owner）身份进行沙箱路径解析，并加入了 24 小时强制过期校验。
+- **底层鉴权**：分享访问会绑定 Token 的所有者（Owner）身份进行沙箱路径解析。
+
+> ⚠️ **已知限制 (v4.4.0-lite.2)**：前端 `index.html` 的分享弹窗仍保留「提取码」输入框，但**服务端当前未实现 `pass` 参数校验**，提交的提取码会被忽略。这是精简时遗留的前后端不一致，已在 `CHANGELOG` 记录，待后续版本修复（补服务端 `ShareInfo.pass` 字段 + `/share/{token}` 校验，或直接下掉前端输入框）。在修复前，请勿将带提取码的分享链接视为已加密。
 
 ### 2. 访问分享
 - **URL**: `/share/{token}`
 - **Method**: `GET`
-- **Response**: 校验通过后，返回文件流。
+- **Response**: 校验通过后，返回文件流。Token 过期或被移除时返回 `403` / `404`。
 
 ---
 
@@ -130,7 +135,7 @@
 - **URL**: `/api/search`
 - **Method**: `GET`
 - **Params**: `q` (String, 必填) - 搜索关键字。
-- **Response**: `200 OK`，返回包含 `name`, `path`, `dir`, `size` 等属性的 JSON 数组。
+- **Response**: `200 OK`，返回包含 `name`, `path`, `dir`, `size` 等属性的 JSON 数组。最多返回 200 条，递归深度上限 4 层。
 
 ### 2. 局域网剪贴板
 - **获取**: `GET /api/clipboard` -> 返回纯文本内容。
@@ -140,30 +145,50 @@
 
 ## ⚙️ 四、 系统与控制台接口
 
-### 1. 系统 OTA 更新检查
+### 1. 系统状态查询
+- **URL**: `/api/status`
+- **Method**: `GET`
+- **Response**: `200 OK`，返回运行状态 JSON。**(v4.4.0-lite.2 `isDefaultPwd` 改为动态判定)**
+```json
+{
+  "lowPower": false,
+  "clipboardEnabled": true,
+  "globalMode": false,
+  "httpsEnabled": false,
+  "isDefaultPwd": false,
+  "fail2ban": true,
+  "pinRequired": true,
+  "auditEnabled": true,
+  "ipWhitelistEnabled": false,
+  "ipWhitelist": "192.168.1.*,127.0.0.1"
+}
+```
+- `isDefaultPwd`：`true` 表示 `admin` 仍在使用默认密码 `admin`，前端会弹安全警告。`false` 表示已改密。该字段每次请求都会实际查询 SQLite 并与加盐哈希比对，不再使用静态变量，重启进程不会回退。
+
+### 2. 系统 OTA 更新检查
 - **URL**: `/api/ota`
 - **Method**: `GET`
-- **Response**: `200 OK`，返回最新版本信息，供客户端比对。
+- **Response**: `200 OK`，返回 `{"version":"4.4.0-lite.2"}`。该字段由 `sync_version.py` 自动注入，与 `CHANGELOG.md` 顶部版本号保持同步。
 
-### 2. 获取/保存系统配置
+### 3. 获取/保存系统配置
 - **URL**: `/api/settings`
 - **Method**: `GET` / `POST`
 - **权限**：v4.4.0 补齐了严格校验，**仅 `admin` 角色可调用**。
 - **GET Response**: 返回包含 `alias`, `webPort`, `davPort`, `ftpPort`, `webdav`, `ftp`, `stream`, `clipboard`, `lowPower`, `webhookUrl`, `webhookChatId` 的 JSON。
-- **POST Body**: 包含上述字段进行更新。
+- **POST Body**: 包含上述字段进行更新。若开启了「敏感操作安全码」(`pinRequired`)，请求必须额外携带 `pin` 字段，否则返回 `403`。
 
-### 3. Webhook 测试
+### 4. Webhook 测试
 - **URL**: `/api/webhook/test`
 - **Method**: `POST`
 - **Response**: `200 OK`，服务端会立即向已配置的 Webhook URL 发送一条测试通知。
 
-### 4. 修改管理员密码
+### 5. 修改管理员密码
 - **URL**: `/api/password`
 - **Method**: `POST`
 - **Body**: `password=新密码`
 - **权限**：仅 `admin` 可调用。
 
-### 5. PWA 静态资源
+### 6. PWA 静态资源
 - **URL**: `/manifest.json` / `/sw.js`
 - **Method**: `GET`
 - **Response**: 直接返回 PWA 的配置文件与 Service Worker 脚本，内容由服务端从 `assets` 目录流式读取。
@@ -181,8 +206,20 @@
 
 ## 📂 六、 其他协议端口分配
 
-- **WebDAV (8081端口)**：支持标准 WebDAV 协议，兼容 Windows 网络邻居映射。
-- **FTP (2121端口)**：支持 PASV 被动模式，兼容 Windows 资源管理器。
+- **WebDAV (8081端口)**：支持标准 WebDAV 协议，兼容 Windows 网络邻居映射。同样受 `ThreadLocal` 身份隔离与 `safeFile` 沙箱约束。
+- **FTP (2121端口)**：支持 PASV 被动模式，兼容 Windows 资源管理器。同样受 IP 白名单与 Fail2Ban 拦截。
+
+---
+
+## 🔢 七、 版本号编码规范 (sync_version.py)
+
+CI 与各端 `build.gradle` 的版本号均由 `sync_version.py` 注入，开发者**严禁手改**。
+
+- **`versionName`**：保留完整 `-lite.N` 后缀，如 `4.4.0-lite.2`。
+- **`versionCode`**：编码为 `major*100000 + minor*1000 + patch*10 + lite序号`。
+  - 例：`4.4.0-lite.2` → `4*100000 + 4*1000 + 0*10 + 2` = **`404002`**。
+- **CHANGELOG 正则**：`##\s*\[?v?(\d+\.\d+\.\d+(?:-lite\.\d+)?)\]?`。
+  - ⚠️ **禁止**只匹配 `\d+\.\d+\.\d+`。会被截断成 `4.4.0`，导致注入到 `versionName` 后与 CI Release 产物文件名不一致，且 `-lite.N` 的 `N` 无法参与 `versionCode` 编码。
 
 ---
 

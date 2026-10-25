@@ -7,6 +7,31 @@
 
 ---
 
+## [4.4.0-lite.2] - 2026-10-25
+
+**基于 4.4.0-lite.1 的深度修复：封堵沙箱逃逸回归与 CI 流水线崩坏**
+
+完整版未发布新大版本，本次为 Lite 版专属精简范围与残留缺陷修复。重点封堵了 lite.1 精简过程中回退的沙箱校验缺陷，并修复了 CI 发版流水线与包名隔离的回归。
+
+### Fixed（致命回归修复）
+- **沙箱逃逸与全站 404**：`NasHttpServer.safeFile()` 与 `FtpServer.safeFile()` 在精简时回退了 `new File(parent, "/abs")` 的致命写法，导致 `path` 带前导斜杠时父目录被忽略，`admin` 与 `guest` 的所有文件操作被 `getCanonicalPath()` 判定越权并返回 `null`。已恢复为强制 `replaceAll("^/+", "")` 后再拼接。
+- **CI 发版流水线崩坏**：`build-all.yml` 的 `Extract Release Notes` 段在精简时残留了旧版 heredoc 裸文本，导致 Shell 解析直接报 `command not found`。已重写为 `{ ... } > release_notes.md` 的块结构，并同步适配 Lite 版 Assets 命名。
+- **包名隔离回归**：`app/client/tv` 的 `applicationId` 在精简时被误改为 `com.androidnas.all.*`，与 Lite 版“与完整版共存”的核心卖点冲突。已恢复为 `com.androidnas.lite.*`。
+- **越界依赖回流**：`app/build.gradle` 在精简时错误重新引入了 `jsch`（SSH 穿透）与 `Java-WebSocket`（远控），直接违反 Lite 版“物理移除高危依赖”的硬约束。已物理删除。
+
+### Fixed（精简残留与边缘缺陷）
+- **分片上传对 `content://` 崩溃**：`FileListActivity` 在分片上传分支里对 `content://` URI 使用 `new File(uri.getPath())` 二次打开，会抛 `FileNotFoundException`。已改为通过 `getContentResolver().openInputStream(uri)` 重新打开。
+- **版本号注入截断**：`sync_version.py` 的正则只吃 `\d+\.\d+\.\d+`，`4.4.0-lite.1` 被截断成 `4.4.0`，注入 `versionName` 后与 CI 产物文件名不一致。已扩展为支持 `-lite.N` 后缀，`versionCode` 同步加入 lite 序号编码。
+- **清理线程泄漏**：`HttpServerService.startCleanupTask()` 的 `while(true)` 没有退出条件，服务停止后线程仍驻留。已改为 `while(running)` 并监听中断。
+- **默认密码提示失效**：`DatabaseManager.isDefaultPwd` 为静态变量，重启进程后即使已改密也回显“默认密码警告”。已改为 `isDefaultPassword()` 动态查询 SQLite 比对加盐哈希。
+- **分享有效期被忽略**：`/api/share` 接口在精简时丢失了 `expire` 参数解析，固定 24 小时。已恢复对前端参数的支持，缺省仍为 24 小时。
+- **无障碍描述残留**：`strings.xml` 中还残留着 `accessibility_service_description` 字符串，对应的 `NasAccessibilityService` 早已被物理删除。已清理。
+
+### Changed（适配调整）
+- `versionCode` 编码规则由 `major*10000 + minor*100 + patch` 调整为 `major*100000 + minor*1000 + patch*10 + lite序号`，以容纳 `-lite.N` 后缀而不冲突。
+
+---
+
 ## [4.4.0-lite.1] - 2026-10-25
 
 **基于完整版 v4.4.0 重新精简：顶级安全底座与底层换血**
