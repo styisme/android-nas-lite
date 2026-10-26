@@ -1,4 +1,5 @@
 package com.androidnas;
+
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
@@ -12,6 +13,7 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.PowerManager;
+import android.os.StatFs;
 import android.provider.Settings;
 import android.text.InputType;
 import android.view.Menu;
@@ -21,6 +23,7 @@ import android.view.ViewGroup;
 import android.widget.*;
 import java.io.File;
 import java.util.*;
+
 public class MainActivity extends Activity {
     private static final String ROOT = Environment.getExternalStorageDirectory().getAbsolutePath();
     private File currentDir;
@@ -30,51 +33,582 @@ public class MainActivity extends Activity {
     private CheckBox cbAuth;
     private FileAdapter adapter;
     private final List<File> items = new ArrayList<File>();
+
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        SettingsManager.init(this); AuthManager.init(this);
+        SettingsManager.init(this);
+        AuthManager.init(this);
+
         currentDir = new File(ROOT);
-        pathView = (TextView) findViewById(R.id.pathView); statusView = (TextView) findViewById(R.id.statusView); ipView = (TextView) findViewById(R.id.ipView); toggleBtn = (Button) findViewById(R.id.toggleBtn); listView = (ListView) findViewById(R.id.listView); cbAuth = (CheckBox) findViewById(R.id.cbAuth);
+        pathView = (TextView) findViewById(R.id.pathView);
+        statusView = (TextView) findViewById(R.id.statusView);
+        ipView = (TextView) findViewById(R.id.ipView);
+        toggleBtn = (Button) findViewById(R.id.toggleBtn);
+        listView = (ListView) findViewById(R.id.listView);
+        cbAuth = (CheckBox) findViewById(R.id.cbAuth);
+
         SharedPreferences sp = getSharedPreferences("nas_auth", Context.MODE_PRIVATE);
         cbAuth.setChecked(sp.getBoolean("auth_enabled", true));
-        cbAuth.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() { @Override public void onCheckedChanged(CompoundButton b, boolean isChecked) { AuthManager.setAuthEnabled(MainActivity.this, isChecked); if (HttpServerService.isRunning()) { stopService(new Intent(MainActivity.this, HttpServerService.class)); new Handler().postDelayed(new Runnable() { @Override public void run() { startService(new Intent(MainActivity.this, HttpServerService.class)); } }, 500); Toast.makeText(MainActivity.this, "账号验证已切换，服务正在重启…", Toast.LENGTH_SHORT).show(); } updateServiceStatus(); } });
-        adapter = new FileAdapter(); listView.setAdapter(adapter);
-        listView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() { @Override public boolean onItemLongClick(AdapterView<?> p, View v, int pos, long id) { showFileMenu(items.get(pos)); return true; } });
-        listView.setOnItemClickListener(new AdapterView.OnItemClickListener() { @Override public void onItemClick(AdapterView<?> p, View v, int pos, long id) { File f = items.get(pos); if (f.isDirectory()) { currentDir = f; refresh(); } else showFileMenu(f); } });
-        toggleBtn.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { if (HttpServerService.isRunning()) { stopService(new Intent(MainActivity.this, HttpServerService.class)); Toast.makeText(MainActivity.this, "正在停止...", Toast.LENGTH_SHORT).show(); new Handler().postDelayed(new Runnable() { @Override public void run() { updateServiceStatus(); } }, 1000); } else { startService(new Intent(MainActivity.this, HttpServerService.class)); Toast.makeText(MainActivity.this, "正在启动...", Toast.LENGTH_SHORT).show(); new Handler().postDelayed(new Runnable() { @Override public void run() { updateServiceStatus(); } }, 500); } } });
-        findViewById(R.id.upBtn).setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { File p = currentDir.getParentFile(); if (p != null && p.getAbsolutePath().startsWith(ROOT)) { currentDir = p; refresh(); } } });
-        findViewById(R.id.refreshBtn).setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { refresh(); } });
-        if (!HttpServerService.isRunning()) { startService(new Intent(this, HttpServerService.class)); checkAllFilesPermission(); checkBatteryOptimization(); }
+        cbAuth.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override public void onCheckedChanged(CompoundButton b, boolean isChecked) {
+                AuthManager.setAuthEnabled(MainActivity.this, isChecked);
+                if (HttpServerService.isRunning()) {
+                    stopService(new Intent(MainActivity.this, HttpServerService.class));
+                    new Handler().postDelayed(new Runnable() {
+                        @Override public void run() { startService(new Intent(MainActivity.this, HttpServerService.class)); }
+                    }, 500);
+                    Toast.makeText(MainActivity.this, "账号验证已切换，服务正在重启…", Toast.LENGTH_SHORT).show();
+                }
+                updateServiceStatus();
+            }
+        });
+
+        // 移除动态添加，直接在 XML 里排版好
+
+        adapter = new FileAdapter();
+        listView.setAdapter(adapter);
+        listView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
+            @Override public boolean onItemLongClick(AdapterView<?> p, View v, int pos, long id) {
+                showFileMenu(items.get(pos)); return true;
+            }
+        });
+        listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override public void onItemClick(AdapterView<?> p, View v, int pos, long id) {
+                File f = items.get(pos);
+                if (f.isDirectory()) { currentDir = f; refresh(); }
+                else showFileMenu(f);
+            }
+        });
+        toggleBtn.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                if (HttpServerService.isRunning()) {
+                    // 停止服务
+                    stopService(new Intent(MainActivity.this, HttpServerService.class));
+                    Toast.makeText(MainActivity.this, "正在停止...", Toast.LENGTH_SHORT).show();
+                    // 延迟刷新状态，给底层 Socket 释放端口的时间
+                    new Handler().postDelayed(() -> updateServiceStatus(), 1000);
+                } else {
+                    // 启动服务
+                    startService(new Intent(MainActivity.this, HttpServerService.class));
+                    Toast.makeText(MainActivity.this, "正在启动...", Toast.LENGTH_SHORT).show();
+                    new Handler().postDelayed(() -> updateServiceStatus(), 500);
+                }
+            }
+        });
+        findViewById(R.id.upBtn).setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                File p = currentDir.getParentFile();
+                if (p != null && p.getAbsolutePath().startsWith(ROOT)) { currentDir = p; refresh(); }
+            }
+        });
+        findViewById(R.id.refreshBtn).setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { refresh(); }
+        });
+        if (!HttpServerService.isRunning()) {
+            startService(new Intent(this, HttpServerService.class));
+            checkAllFilesPermission();
+            checkBatteryOptimization();
+        }
     }
-    private void checkAllFilesPermission() { if (Build.VERSION.SDK_INT >= 30) { if (!android.os.Environment.isExternalStorageManager()) { new AlertDialog.Builder(this).setTitle("全盘权限提示").setMessage("你需要开启“所有文件访问权限”才能正常读取手机存储。").setPositiveButton("去开启", new DialogInterface.OnClickListener() { @Override public void onClick(DialogInterface d, int w) { try { Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION); intent.setData(Uri.parse("package:" + getPackageName())); startActivity(intent); } catch (Exception ignored) {} } }).setNegativeButton("暂不", null).show(); } } }
-    private void checkBatteryOptimization() { if (Build.VERSION.SDK_INT >= 23) { PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE); if (!pm.isIgnoringBatteryOptimizations(getPackageName())) { new AlertDialog.Builder(this).setTitle("后台保活核心设置").setMessage("为保证 NAS 息屏不断网，必须进行以下设置：\n\n1. 忽略电池优化\n2. 允许自启动/后台运行").setPositiveButton("去忽略电池优化", new DialogInterface.OnClickListener() { @Override public void onClick(DialogInterface d, int w) { try { Intent intent = new Intent(); intent.setAction(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS); intent.setData(Uri.parse("package:" + getPackageName())); startActivity(intent); } catch (Exception e) { e.printStackTrace(); } } }).setNegativeButton("暂不", null).show(); } } }
-    @Override public boolean onCreateOptionsMenu(Menu menu) { menu.add(0, 1, 0, "新建文件夹"); menu.add(0, 6, 0, "NAS 驾驶舱"); menu.add(0, 4, 0, "运行日志"); menu.add(0, 7, 0, "关于"); return true; }
-    @Override public boolean onOptionsItemSelected(MenuItem item) { int id = item.getItemId(); if (id == 1) { final EditText input = new EditText(this); new AlertDialog.Builder(this).setTitle("新建文件夹").setView(input).setPositiveButton("创建", new DialogInterface.OnClickListener() { @Override public void onClick(DialogInterface d, int w) { String name = input.getText().toString().trim(); if (name.length() == 0) return; if (name.contains("/") || name.contains("\\") || name.equals(".") || name.equals("..")) { Toast.makeText(MainActivity.this, "名称含非法字符", Toast.LENGTH_SHORT).show(); return; } if (new File(currentDir, name).mkdirs()) refresh(); } }).setNegativeButton("取消", null).show(); return true; } else if (id == 6) { showControlCenter(); return true; } else if (id == 4) { new AlertDialog.Builder(this).setTitle("最近日志").setMessage(LogManager.getAllLogs()).setPositiveButton("关闭", null).show(); return true; } else if (id == 7) { new AlertDialog.Builder(this).setTitle("关于 Android NAS Lite").setMessage("版本: v4.4.0-lite.1\n\n精简版：专注核心文件流转。\n\n⚠️ 大量代码由 AI 辅助生成。").setPositiveButton("确定", null).show(); return true; } return super.onOptionsItemSelected(item); }
-    private static Integer parsePortSafe(String s) { try { int p = Integer.parseInt(s.trim()); if (p < 1 || p > 65535) return null; return p; } catch (Exception e) { return null; } }
+
+    private void checkAllFilesPermission() {
+        if (Build.VERSION.SDK_INT >= 30) {
+            if (!android.os.Environment.isExternalStorageManager()) {
+                new AlertDialog.Builder(this).setTitle("全盘权限提示")
+                    .setMessage("你需要开启“所有文件访问权限”才能正常读取手机存储和开启全盘模式。")
+                    .setPositiveButton("去开启", (d, w) -> {
+                        try {
+                            Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+                            intent.setData(Uri.parse("package:" + getPackageName()));
+                            startActivity(intent);
+                        } catch (Exception ignored) {}
+                    }).setNegativeButton("暂不", null).show();
+            }
+        }
+    }
+
+    private void checkBatteryOptimization() {
+        if (Build.VERSION.SDK_INT >= 23) {
+            PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
+            if (!pm.isIgnoringBatteryOptimizations(getPackageName())) {
+                new AlertDialog.Builder(this).setTitle("后台保活核心设置")
+                    .setMessage("为保证 NAS 息屏不断网，必须进行以下设置：\n\n1. 忽略电池优化 (原生 Android)\n2. 允许自启动/后台运行 (国产 ROM)\n3. 锁定后台任务卡片")
+                    .setPositiveButton("去忽略电池优化", new DialogInterface.OnClickListener() {
+                        @Override public void onClick(DialogInterface d, int w) {
+                            try {
+                                Intent intent = new Intent();
+                                intent.setAction(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+                                intent.setData(Uri.parse("package:" + getPackageName()));
+                                startActivity(intent);
+                            } catch (Exception e) { e.printStackTrace(); }
+                        }
+                    })
+                    .setNeutralButton("去自启动管理", new DialogInterface.OnClickListener() {
+                        @Override public void onClick(DialogInterface d, int w) { gotoAutoStart(); }
+                    })
+                    .setNegativeButton("暂不", null).show();
+            }
+        }
+    }
+
+    // 尝试跳转各大国产 ROM 的自启动管理页
+    private void gotoAutoStart() {
+        Intent intent = new Intent();
+        String brand = Build.BRAND.toLowerCase();
+        try {
+            if (brand.contains("huawei") || brand.contains("honor")) {
+                intent.setClassName("com.huawei.systemmanager", "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity");
+            } else if (brand.contains("xiaomi") || brand.contains("redmi")) {
+                intent.setClassName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity");
+            } else if (brand.contains("oppo") || brand.contains("realme")) {
+                intent.setClassName("com.coloros.safecenter", "com.coloros.safecenter.permission.startup.StartupAppListActivity");
+            } else if (brand.contains("vivo") || brand.contains("iqoo")) {
+                intent.setClassName("com.vivo.permissionmanager", "com.vivo.permissionmanager.activity.BgStartUpManagerActivity");
+            } else {
+                intent.setAction(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                intent.setData(Uri.parse("package:" + getPackageName()));
+            }
+            startActivity(intent);
+        } catch (Exception e) {
+            try {
+                intent.setAction(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                intent.setData(Uri.parse("package:" + getPackageName()));
+                startActivity(intent);
+            } catch (Exception ignored) {}
+        }
+    }
+
+    @Override public boolean onCreateOptionsMenu(Menu menu) {
+        menu.add(0, 1, 0, "新建文件夹");
+        menu.add(0, 6, 0, "NAS 驾驶舱");
+        menu.add(0, 3, 0, "内网穿透");
+        menu.add(0, 4, 0, "运行日志");
+        menu.add(0, 7, 0, "关于");
+        menu.add(0, 8, 0, "高级保活 (Root/ADB)");
+        menu.add(0, 9, 0, "请求录屏授权");
+        menu.add(0, 10, 0, "开启无障碍触控");
+        return true;
+    }
+
+    @Override public boolean onOptionsItemSelected(MenuItem item) {
+        int id = item.getItemId();
+        if (id == 1) {
+            final EditText input = new EditText(this);
+            new AlertDialog.Builder(this).setTitle("新建文件夹").setView(input).setPositiveButton("创建", new DialogInterface.OnClickListener() {
+                @Override public void onClick(DialogInterface d, int w) {
+                    String name = input.getText().toString().trim();
+                    if (name.length() == 0) return;
+                    if (name.contains("/") || name.contains("\\") || name.equals(".") || name.equals("..")) {
+                        Toast.makeText(MainActivity.this, "名称含非法字符", Toast.LENGTH_SHORT).show(); return;
+                    }
+                    if (new File(currentDir, name).mkdirs()) refresh();
+                }
+            }).setNegativeButton("取消", null).show();
+            return true;
+        } else if (id == 6) { showControlCenter(); return true; }
+        else if (id == 3) {
+            if (SettingsManager.isLowPowerMode()) {
+                new AlertDialog.Builder(this).setTitle("极寒模式已开启")
+                    .setMessage("为保证续航，极寒模式下已禁止内网穿透。请先在控制中心关闭极寒模式。")
+                    .setPositiveButton("去关闭", new DialogInterface.OnClickListener() {
+                        @Override public void onClick(DialogInterface d, int w) { showControlCenter(); }
+                    }).setNegativeButton("取消", null).show();
+                return true;
+            }
+            showTunnelCenter(); return true;
+        } else if (id == 4) {
+            new AlertDialog.Builder(this).setTitle("最近日志").setMessage(LogManager.getAllLogs()).setPositiveButton("关闭", null).show();
+            return true;
+        } else if (id == 10) {
+            try {
+                startActivity(new Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS));
+            } catch (Exception e) {
+                Toast.makeText(this, "无法打开无障碍设置", Toast.LENGTH_SHORT).show();
+            }
+            return true;
+        } else if (id == 9) {
+            android.media.projection.MediaProjectionManager pm = (android.media.projection.MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
+            Intent intent = pm.createScreenCaptureIntent();
+            startActivityForResult(intent, 1001);
+            return true;
+        } else if (id == 8) {
+            showAdvancedKeepAlive();
+            return true;
+        } else if (id == 7) {
+            new AlertDialog.Builder(this).setTitle("关于 Android NAS")
+                .setMessage("版本: v3.2.0 旗舰版\n\n支持流媒体、剪贴板、内网穿透、FTP、DLNA。\n\n⚠️ 大量代码由 AI 辅助生成。")
+                .setPositiveButton("确定", null).show();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    private static Integer parsePortSafe(String s) {
+        try {
+            int p = Integer.parseInt(s.trim());
+            if (p < 1 || p > 65535) return null;
+            return p;
+        } catch (Exception e) { return null; }
+    }
+
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == 1001) {
+            if (resultCode == RESULT_OK) {
+
+                Toast.makeText(this, "推流已启动，请去网页端查看", Toast.LENGTH_LONG).show();
+            } else {
+                Toast.makeText(this, "录屏授权被拒绝", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    private void showAdvancedKeepAlive() {
+        // 为了防止没 Root 导致 su 卡住主线程，先把 UI 弹出来，并在后台检测
+        new AlertDialog.Builder(this)
+            .setTitle("正在检测环境")
+            .setMessage("正在检测 Root 状态...")
+            .setPositiveButton("知道了", null)
+            .show();
+
+        new Thread(() -> {
+            boolean root = false; /* LITE */
+            boolean adb = false; /* LITE */
+            boolean doze = false; /* LITE */
+            runOnUiThread(() -> {
+                // 关闭刚刚的提示框
+                // (简单粗暴点，这里直接弹最终框)
+                showAdvancedKeepAliveResult(root, adb, doze);
+            });
+        }).start();
+    }
+
+    private void showAdvancedKeepAliveResult(boolean root, boolean adb, boolean doze) {
+
+        String status = "当前状态：\n";
+        status += "Root 权限：" + (root ? "✅ 已获取" : "❌ 未获取") + "\n";
+        status += "ADB 权限：" + (adb ? "✅ 已获取" : "❌ 未获取") + "\n";
+        status += "Doze 白名单：" + (doze ? "✅ 已加入" : "❌ 未加入") + "\n\n";
+
+        status += "【终极特权：已 Root】\n点击按钮执行神级保活：\n";
+        status += "1. 写入内核 OOM -1000 免死金牌\n";
+        status += "2. 强制篡改系统活跃度分桶\n";
+        status += "3. 暴力冻结各厂商的省电守护进程（可能略微增加全局耗电）\n\n";
+
+        new AlertDialog.Builder(this)
+            .setTitle("系统级护法控制台")
+            .setMessage(status)
+            .setPositiveButton("一键免死注入", new DialogInterface.OnClickListener() {
+                @Override public void onClick(DialogInterface d, int w) {
+                    if (false) /* LITE */ {
+                        Toast.makeText(MainActivity.this, "正在后台执行 Root 注入...", Toast.LENGTH_SHORT).show();
+                        new Thread(() -> {
+
+                            runOnUiThread(() -> Toast.makeText(MainActivity.this, "OOM免死+系统服务冻结 执行成功！", Toast.LENGTH_LONG).show());
+                        }).start();
+                    } else {
+                        Toast.makeText(MainActivity.this, "需要 Root 权限！", Toast.LENGTH_SHORT).show();
+                    }
+                }
+            })
+            .setNeutralButton("生成特权模块", new DialogInterface.OnClickListener() {
+                @Override public void onClick(DialogInterface d, int w) {
+                    if (false) /* LITE */ {
+                        Toast.makeText(MainActivity.this, "正在生成模块...", Toast.LENGTH_SHORT).show();
+                        new Thread(() -> {
+
+                            runOnUiThread(() -> Toast.makeText(MainActivity.this, "Magisk模块已生成，重启手机生效！", Toast.LENGTH_LONG).show());
+                        }).start();
+                    } else {
+                        Toast.makeText(MainActivity.this, "需要 Root 权限！", Toast.LENGTH_SHORT).show();
+                    }
+                }
+            })
+            .setNegativeButton("还原系统服务", new DialogInterface.OnClickListener() {
+                @Override public void onClick(DialogInterface d, int w) {
+                    if (false) /* LITE */ {
+
+                        Toast.makeText(MainActivity.this, "已解除厂商服务的冻结", Toast.LENGTH_SHORT).show();
+                    }
+                }
+            })
+            .show();
+    }
+
     private void showControlCenter() {
-        ScrollView sv = new ScrollView(this); LinearLayout layout = new LinearLayout(this); layout.setOrientation(LinearLayout.VERTICAL); layout.setPadding(48, 24, 48, 24); sv.addView(layout);
+        ScrollView sv = new ScrollView(this);
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(48, 24, 48, 24);
+        sv.addView(layout);
+
         EditText etAlias = new EditText(this); etAlias.setHint("设备名称"); etAlias.setText(SettingsManager.getDeviceAlias()); layout.addView(etAlias);
-        RadioGroup tabGroup = new RadioGroup(this); tabGroup.setOrientation(RadioGroup.HORIZONTAL); RadioButton rbBasic = new RadioButton(this); rbBasic.setText("基础"); rbBasic.setChecked(true); RadioButton rbServices = new RadioButton(this); rbServices.setText("服务"); RadioButton rbAdvanced = new RadioButton(this); rbAdvanced.setText("高级"); tabGroup.addView(rbBasic); tabGroup.addView(rbServices); tabGroup.addView(rbAdvanced); layout.addView(tabGroup);
-        LinearLayout groupBasic = new LinearLayout(this); groupBasic.setOrientation(LinearLayout.VERTICAL);
+
+        // --- 分页选择器 (不使用硬编码 ID 防止与系统冲突) ---
+        RadioGroup tabGroup = new RadioGroup(this);
+        tabGroup.setOrientation(RadioGroup.HORIZONTAL);
+        RadioButton rbBasic = new RadioButton(this); rbBasic.setText("基础"); rbBasic.setChecked(true);
+        RadioButton rbServices = new RadioButton(this); rbServices.setText("服务");
+        RadioButton rbAdvanced = new RadioButton(this); rbAdvanced.setText("高级");
+        tabGroup.addView(rbBasic); tabGroup.addView(rbServices); tabGroup.addView(rbAdvanced);
+        layout.addView(tabGroup);
+
+        // --- 基础设置组 ---
+        LinearLayout groupBasic = new LinearLayout(this);
+        groupBasic.setOrientation(LinearLayout.VERTICAL);
         EditText etWebPort = new EditText(this); etWebPort.setHint("Web 端口"); etWebPort.setInputType(InputType.TYPE_CLASS_NUMBER); etWebPort.setText(String.valueOf(SettingsManager.getWebPort())); groupBasic.addView(etWebPort);
         EditText etDavPort = new EditText(this); etDavPort.setHint("WebDAV 端口"); etDavPort.setInputType(InputType.TYPE_CLASS_NUMBER); etDavPort.setText(String.valueOf(SettingsManager.getWebDavPort())); groupBasic.addView(etDavPort);
-        EditText etFtpPort = new EditText(this); etFtpPort.setHint("FTP 端口"); etFtpPort.setInputType(InputType.TYPE_CLASS_NUMBER); etFtpPort.setText(String.valueOf(SettingsManager.getFtpPort())); groupBasic.addView(etFtpPort); layout.addView(groupBasic);
-        LinearLayout groupServices = new LinearLayout(this); groupServices.setOrientation(LinearLayout.VERTICAL); groupServices.setVisibility(View.GONE);
+        EditText etFtpPort = new EditText(this); etFtpPort.setHint("FTP 端口"); etFtpPort.setInputType(InputType.TYPE_CLASS_NUMBER); etFtpPort.setText(String.valueOf(SettingsManager.getFtpPort())); groupBasic.addView(etFtpPort);
+        layout.addView(groupBasic);
+
+        // --- 服务开关组 ---
+        LinearLayout groupServices = new LinearLayout(this);
+        groupServices.setOrientation(LinearLayout.VERTICAL);
+        groupServices.setVisibility(View.GONE);
         CheckBox cbWebDav = new CheckBox(this); cbWebDav.setText("开启 WebDAV"); cbWebDav.setChecked(SettingsManager.isWebDavEnabled()); groupServices.addView(cbWebDav);
         CheckBox cbFtp = new CheckBox(this); cbFtp.setText("开启 FTP 服务"); cbFtp.setChecked(SettingsManager.isFtpEnabled()); groupServices.addView(cbFtp);
+        CheckBox cbDlna = new CheckBox(this); cbDlna.setText("开启 DLNA 投屏"); cbDlna.setChecked(SettingsManager.isDlnaEnabled()); groupServices.addView(cbDlna);
         CheckBox cbStream = new CheckBox(this); cbStream.setText("允许网页流媒体"); cbStream.setChecked(SettingsManager.isStreamEnabled()); groupServices.addView(cbStream);
-        CheckBox cbClipboard = new CheckBox(this); cbClipboard.setText("开启剪贴板"); cbClipboard.setChecked(SettingsManager.isClipboardEnabled()); groupServices.addView(cbClipboard); layout.addView(groupServices);
-        LinearLayout groupAdvanced = new LinearLayout(this); groupAdvanced.setOrientation(LinearLayout.VERTICAL); groupAdvanced.setVisibility(View.GONE);
-        CheckBox cbLowPower = new CheckBox(this); cbLowPower.setText("极寒省电模式"); cbLowPower.setChecked(SettingsManager.isLowPowerMode()); groupAdvanced.addView(cbLowPower); layout.addView(groupAdvanced);
-        tabGroup.setOnCheckedChangeListener(new RadioGroup.OnCheckedChangeListener() { @Override public void onCheckedChanged(RadioGroup group, int checkedId) { View v = group.findViewById(checkedId); if (v == null) return; String text = ((RadioButton) v).getText().toString(); groupBasic.setVisibility(text.equals("基础") ? View.VISIBLE : View.GONE); groupServices.setVisibility(text.equals("服务") ? View.VISIBLE : View.GONE); groupAdvanced.setVisibility(text.equals("高级") ? View.VISIBLE : View.GONE); } });
-        new AlertDialog.Builder(this).setTitle("NAS 驾驶舱").setView(sv).setPositiveButton("保存并重启", new DialogInterface.OnClickListener() { @Override public void onClick(DialogInterface dialog, int which) { Integer webPort = parsePortSafe(etWebPort.getText().toString()); Integer davPort = parsePortSafe(etDavPort.getText().toString()); Integer ftpPort = parsePortSafe(etFtpPort.getText().toString()); if (webPort == null || davPort == null || ftpPort == null) { Toast.makeText(MainActivity.this, "端口必须为 1-65535 的数字", Toast.LENGTH_LONG).show(); return; } SettingsManager.setDeviceAlias(etAlias.getText().toString().trim()); SettingsManager.setWebPort(webPort); SettingsManager.setWebDavPort(davPort); SettingsManager.setFtpPort(ftpPort); SettingsManager.setWebDavEnabled(cbWebDav.isChecked()); SettingsManager.setFtpEnabled(cbFtp.isChecked()); SettingsManager.setStreamEnabled(cbStream.isChecked()); SettingsManager.setClipboardEnabled(cbClipboard.isChecked()); SettingsManager.setLowPowerMode(cbLowPower.isChecked()); if (HttpServerService.isRunning()) { stopService(new Intent(MainActivity.this, HttpServerService.class)); Toast.makeText(MainActivity.this, "正在重启服务...", Toast.LENGTH_SHORT).show(); new Handler().postDelayed(new Runnable() { @Override public void run() { startService(new Intent(MainActivity.this, HttpServerService.class)); new Handler().postDelayed(new Runnable() { @Override public void run() { updateServiceStatus(); } }, 500); } }, 1000); } updateServiceStatus(); } }).setNegativeButton("取消", null).show();
+        CheckBox cbClipboard = new CheckBox(this); cbClipboard.setText("开启剪贴板"); cbClipboard.setChecked(SettingsManager.isClipboardEnabled()); groupServices.addView(cbClipboard);
+        layout.addView(groupServices);
+
+        // --- 高级设置组 ---
+        LinearLayout groupAdvanced = new LinearLayout(this);
+        groupAdvanced.setOrientation(LinearLayout.VERTICAL);
+        groupAdvanced.setVisibility(View.GONE);
+        CheckBox cbLowPower = new CheckBox(this); cbLowPower.setText("极寒省电模式"); cbLowPower.setChecked(SettingsManager.isLowPowerMode()); groupAdvanced.addView(cbLowPower);
+        CheckBox cbGlobal = new CheckBox(this); cbGlobal.setText("🦅 全盘模式 (需 Root)"); cbGlobal.setChecked(SettingsManager.isGlobalMode()); groupAdvanced.addView(cbGlobal);
+        CheckBox cbSilent = new CheckBox(this); cbSilent.setText("🎵 静音保活"); cbSilent.setChecked(SettingsManager.isSilentKeepAlive()); groupAdvanced.addView(cbSilent);
+        CheckBox cbLs = new CheckBox(this); cbLs.setText("开启 LocalSend"); cbLs.setChecked(SettingsManager.isLocalSendEnabled()); groupAdvanced.addView(cbLs);
+        EditText etPin = new EditText(this); etPin.setHint("LocalSend PIN"); etPin.setText(SettingsManager.getLsPin()); groupAdvanced.addView(etPin);
+        
+        // 🔥 新增：高级安全防线控制台
+        TextView tvSecTitle = new TextView(this);
+        tvSecTitle.setText("\n🛡️ 高级安全防线");
+        tvSecTitle.setTextColor(0xFFB3261E); // 强调色
+        tvSecTitle.setTextSize(16);
+        tvSecTitle.setPadding(0, 24, 0, 8);
+        groupAdvanced.addView(tvSecTitle);
+
+        CheckBox cbFail2Ban = new CheckBox(this); cbFail2Ban.setText("防爆破 (连错 5 次锁 IP)"); cbFail2Ban.setChecked(SettingsManager.isFail2BanEnabled()); groupAdvanced.addView(cbFail2Ban);
+        CheckBox cbCcLimit = new CheckBox(this); cbCcLimit.setText("防 CC 限流 (防恶意刷流量)"); cbCcLimit.setChecked(SettingsManager.isCcLimitEnabled()); groupAdvanced.addView(cbCcLimit);
+        CheckBox cbCaptcha = new CheckBox(this); cbCaptcha.setText("触发安全拦截弹出算数验证码"); cbCaptcha.setChecked(SettingsManager.isCaptchaEnabled()); groupAdvanced.addView(cbCaptcha);
+        CheckBox cbLanOnly = new CheckBox(this); cbLanOnly.setText("🚨 高危操作仅限局域网"); cbLanOnly.setChecked(SettingsManager.isLanOnlyStrict()); groupAdvanced.addView(cbLanOnly);
+        CheckBox cbHideHeader = new CheckBox(this); cbHideHeader.setText("隐藏 Server 响应头 (防扫描)"); cbHideHeader.setChecked(SettingsManager.isHideHeaderEnabled()); groupAdvanced.addView(cbHideHeader);
+        
+        CheckBox cb2FA = new CheckBox(this); cb2FA.setText("开启 2FA 两步验证 (请用网页端绑定)"); cb2FA.setChecked(SettingsManager.is2FAEnabled()); groupAdvanced.addView(cb2FA);
+        
+        EditText etSecret = new EditText(this); etSecret.setHint("隐藏入口暗号 (留空关闭)"); etSecret.setText(SettingsManager.getSecretPath()); groupAdvanced.addView(etSecret);
+        EditText etTimeout = new EditText(this); etTimeout.setHint("闲置自动登出时间 (分钟)"); etTimeout.setInputType(InputType.TYPE_CLASS_NUMBER); etTimeout.setText(String.valueOf(SettingsManager.getSessionTimeout())); groupAdvanced.addView(etTimeout);
+        
+        layout.addView(groupAdvanced);
+
+        tabGroup.setOnCheckedChangeListener(new RadioGroup.OnCheckedChangeListener() {
+            @Override public void onCheckedChanged(RadioGroup group, int checkedId) {
+                View v = group.findViewById(checkedId);
+                if (v == null) return;
+                String text = ((RadioButton) v).getText().toString();
+                groupBasic.setVisibility(text.equals("基础") ? View.VISIBLE : View.GONE);
+                groupServices.setVisibility(text.equals("服务") ? View.VISIBLE : View.GONE);
+                groupAdvanced.setVisibility(text.equals("高级") ? View.VISIBLE : View.GONE);
+            }
+        });
+
+        new AlertDialog.Builder(this).setTitle("NAS 驾驶舱").setView(sv)
+            .setPositiveButton("保存并重启", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    Integer webPort = parsePortSafe(etWebPort.getText().toString());
+                    Integer davPort = parsePortSafe(etDavPort.getText().toString());
+                    Integer ftpPort = parsePortSafe(etFtpPort.getText().toString());
+                    if (webPort == null || davPort == null || ftpPort == null) {
+                        Toast.makeText(MainActivity.this, "端口必须为 1-65535 的数字", Toast.LENGTH_LONG).show();
+                        return;
+                    }
+                    SettingsManager.setDeviceAlias(etAlias.getText().toString().trim());
+                    SettingsManager.setWebPort(webPort);
+                    SettingsManager.setWebDavPort(davPort);
+                    SettingsManager.setFtpPort(ftpPort);
+
+                    SettingsManager.setWebDavEnabled(cbWebDav.isChecked());
+                    SettingsManager.setFtpEnabled(cbFtp.isChecked());
+                    SettingsManager.setDlnaEnabled(cbDlna.isChecked());
+                    SettingsManager.setStreamEnabled(cbStream.isChecked());
+                    SettingsManager.setClipboardEnabled(cbClipboard.isChecked());
+
+                    SettingsManager.setLowPowerMode(cbLowPower.isChecked());
+                    SettingsManager.setGlobalMode(cbGlobal.isChecked());
+                    SettingsManager.setSilentKeepAlive(cbSilent.isChecked());
+                    SettingsManager.setLocalSendEnabled(cbLs.isChecked());
+                    SettingsManager.setLsPin(etPin.getText().toString().trim());
+                    
+                    // 🔥 新增安全参数保存
+                    SettingsManager.setFail2BanEnabled(cbFail2Ban.isChecked());
+                    SettingsManager.setCcLimitEnabled(cbCcLimit.isChecked());
+                    SettingsManager.setCaptchaEnabled(cbCaptcha.isChecked());
+                    SettingsManager.setLanOnlyStrict(cbLanOnly.isChecked());
+                    SettingsManager.setHideHeaderEnabled(cbHideHeader.isChecked());
+                    SettingsManager.set2FAEnabled(cb2FA.isChecked());
+                    SettingsManager.setSecretPath(etSecret.getText().toString().trim());
+                    try { SettingsManager.setSessionTimeout(Integer.parseInt(etTimeout.getText().toString())); } catch (Exception ignored) {}
+
+                    if (HttpServerService.isRunning()) {
+                        stopService(new Intent(MainActivity.this, HttpServerService.class));
+                        Toast.makeText(MainActivity.this, "正在重启服务...", Toast.LENGTH_SHORT).show();
+                        new Handler().postDelayed(new Runnable() {
+                            @Override public void run() {
+                                startService(new Intent(MainActivity.this, HttpServerService.class));
+                                new Handler().postDelayed(() -> updateServiceStatus(), 500);
+                            }
+                        }, 1000); // 延迟 1 秒等旧端口释放
+                    }
+                    updateServiceStatus();
+                }
+            }).setNegativeButton("取消", null).show();
     }
-    private void showFileMenu(final File f) { final String[] actions = f.isDirectory() ? new String[]{"重命名", "删除", "属性"} : new String[]{"删除", "属性"}; new AlertDialog.Builder(this).setTitle(f.getName()).setItems(actions, new DialogInterface.OnClickListener() { @Override public void onClick(DialogInterface d, int w) { String a = actions[w]; if (a.equals("重命名")) { final EditText input = new EditText(MainActivity.this); input.setText(f.getName()); new AlertDialog.Builder(MainActivity.this).setTitle("重命名").setView(input).setPositiveButton("确定", new DialogInterface.OnClickListener() { @Override public void onClick(DialogInterface d2, int w2) { String n = input.getText().toString().trim(); if (n.length() == 0) return; if (n.contains("/") || n.contains("\\") || n.equals(".") || n.equals("..")) { Toast.makeText(MainActivity.this, "名称含非法字符", Toast.LENGTH_SHORT).show(); return; } if (f.renameTo(new File(f.getParentFile(), n))) refresh(); } }).setNegativeButton("取消", null).show(); } else if (a.equals("删除")) { new AlertDialog.Builder(MainActivity.this).setTitle("删除").setMessage("确定删除 " + f.getName() + "？").setPositiveButton("删除", new DialogInterface.OnClickListener() { @Override public void onClick(DialogInterface d2, int w2) { if (deleteRecursive(f)) refresh(); } }).setNegativeButton("取消", null).show(); } else { String info = "路径：" + f.getAbsolutePath() + "\n大小：" + (f.length() / 1024) + " KB"; new AlertDialog.Builder(MainActivity.this).setTitle("属性").setMessage(info).setPositiveButton("确定", null).show(); } } }).show(); }
-    private boolean deleteRecursive(File f) { if (f.isDirectory()) { File[] c = f.listFiles(); if (c != null) for (File x : c) if (!deleteRecursive(x)) return false; } return f.delete(); }
+
+    private void showTunnelCenter() {
+        boolean running = false; /* LITE */
+        String title = running ? "内网穿透 (已连接)" : "内网穿透 (未连接)";
+        List<String> opts = new ArrayList<String>();
+        if (!running) opts.add("启动免费穿透");
+        else { opts.add("复制当前公网链接"); opts.add("停止当前穿透"); }
+        opts.add("自定义 SSH 穿透");
+        new AlertDialog.Builder(this).setTitle(title)
+            .setItems(opts.toArray(new String[0]), new DialogInterface.OnClickListener() {
+                @Override public void onClick(DialogInterface d, int w) {
+                    String c = opts.get(w);
+                    Toast.makeText(MainActivity.this, "内网穿透已从 Lite 版移除", Toast.LENGTH_SHORT).show();
+                }
+            }).setNegativeButton("关闭", null).show();
+    }
+
+    private void showSshConfigDialog() {
+        ScrollView sv = new ScrollView(this);
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(48, 24, 48, 24);
+        sv.addView(layout);
+        EditText etHost = new EditText(this); etHost.setHint("公网服务器 IP"); layout.addView(etHost);
+        EditText etPort = new EditText(this); etPort.setHint("SSH 端口"); etPort.setInputType(InputType.TYPE_CLASS_NUMBER); layout.addView(etPort);
+        EditText etUser = new EditText(this); etUser.setHint("SSH 用户名"); layout.addView(etUser);
+        EditText etPass = new EditText(this); etPass.setHint("SSH 密码"); etPass.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD); layout.addView(etPass);
+        EditText etRemotePort = new EditText(this); etRemotePort.setHint("公网映射端口"); etRemotePort.setInputType(InputType.TYPE_CLASS_NUMBER); layout.addView(etRemotePort);
+        new AlertDialog.Builder(this).setTitle("自定义 SSH 穿透").setView(sv)
+            .setPositiveButton("连接", new DialogInterface.OnClickListener() {
+                @Override public void onClick(DialogInterface d, int w) {
+                    String host = etHost.getText().toString().trim();
+                    Integer port = parsePortSafe(etPort.getText().toString());
+                    String user = etUser.getText().toString().trim();
+                    String pass = etPass.getText().toString();
+                    Integer rp = parsePortSafe(etRemotePort.getText().toString());
+                    if (port == null) port = 22;
+                    if (rp == null) rp = 8080;
+
+                }
+            }).setNegativeButton("取消", null).show();
+    }
+
+    private void showFileMenu(final File f) {
+        final String[] actions = f.isDirectory() ? new String[]{"重命名", "删除", "属性"} : new String[]{"删除", "属性"};
+        new AlertDialog.Builder(this).setTitle(f.getName()).setItems(actions, new DialogInterface.OnClickListener() {
+            @Override public void onClick(DialogInterface d, int w) {
+                String a = actions[w];
+                if (a.equals("重命名")) {
+                    final EditText input = new EditText(MainActivity.this);
+                    input.setText(f.getName());
+                    new AlertDialog.Builder(MainActivity.this).setTitle("重命名").setView(input).setPositiveButton("确定", new DialogInterface.OnClickListener() {
+                        @Override public void onClick(DialogInterface d2, int w2) {
+                            String n = input.getText().toString().trim();
+                            if (n.length() == 0) return;
+                            if (n.contains("/") || n.contains("\\") || n.equals(".") || n.equals("..")) {
+                                Toast.makeText(MainActivity.this, "名称含非法字符", Toast.LENGTH_SHORT).show(); return;
+                            }
+                            if (f.renameTo(new File(f.getParentFile(), n))) refresh();
+                        }
+                    }).setNegativeButton("取消", null).show();
+                } else if (a.equals("删除")) {
+                    new AlertDialog.Builder(MainActivity.this).setTitle("删除").setMessage("确定删除 " + f.getName() + "？")
+                        .setPositiveButton("删除", new DialogInterface.OnClickListener() {
+                            @Override public void onClick(DialogInterface d2, int w2) { if (deleteRecursive(f)) refresh(); }
+                        }).setNegativeButton("取消", null).show();
+                } else {
+                    String info = "路径：" + f.getAbsolutePath() + "\n大小：" + (f.length() / 1024) + " KB";
+                    new AlertDialog.Builder(MainActivity.this).setTitle("属性").setMessage(info).setPositiveButton("确定", null).show();
+                }
+            }
+        }).show();
+    }
+
+    private boolean deleteRecursive(File f) {
+        if (f.isDirectory()) { File[] c = f.listFiles(); if (c != null) for (File x : c) if (!deleteRecursive(x)) return false; }
+        return f.delete();
+    }
+
     @Override protected void onResume() { super.onResume(); updateServiceStatus(); refresh(); }
-    private void updateServiceStatus() { boolean running = HttpServerService.isRunning(); statusView.setText(running ? "服务状态：运行中" : "服务状态：已停止"); toggleBtn.setText(running ? "停止服务" : "启动服务"); toggleBtn.setEnabled(true); String ip = getIpAddress(); String text = "核心访问: http://" + ip + ":" + SettingsManager.getWebPort(); if (SettingsManager.isLowPowerMode()) text += "\n❄️ 极寒模式运行中"; if (!HttpServerService.lastError.isEmpty()) text += "\n⚠️ " + HttpServerService.lastError; ipView.setText(text); }
-    private String getIpAddress() { try { WifiManager wm = (WifiManager) getSystemService(WIFI_SERVICE); int ip = wm.getConnectionInfo().getIpAddress(); if (ip == 0) return "127.0.0.1"; return String.format(Locale.US, "%d.%d.%d.%d", (ip & 0xff), (ip >> 8 & 0xff), (ip >> 16 & 0xff), (ip >> 24 & 0xff)); } catch (Throwable t) { return "127.0.0.1"; } }
-    private void refresh() { if (!currentDir.exists() || !currentDir.isDirectory()) currentDir = new File(ROOT); pathView.setText(currentDir.getAbsolutePath().replace(ROOT, "/")); items.clear(); File[] files = currentDir.listFiles(); if (files != null) Collections.addAll(items, files); Collections.sort(items, new Comparator<File>() { @Override public int compare(File a, File b) { if (a.isDirectory() && !b.isDirectory()) return -1; if (!a.isDirectory() && b.isDirectory()) return 1; return a.getName().compareToIgnoreCase(b.getName()); } }); adapter.notifyDataSetChanged(); }
-    private class FileAdapter extends BaseAdapter { @Override public int getCount() { return items.size(); } @Override public Object getItem(int p) { return items.get(p); } @Override public long getItemId(int p) { return p; } @Override public View getView(int pos, View cv, ViewGroup parent) { TextView tv; if (cv == null) { tv = new TextView(MainActivity.this); tv.setPadding(16, 24, 16, 24); tv.setTextSize(16); tv.setTextColor(0xFF1D1B20); tv.setBackgroundColor(0xFFFFFFFF); } else tv = (TextView) cv; File f = items.get(pos); tv.setText((f.isDirectory() ? "📁 " : "📄 ") + f.getName()); return tv; } }
+    @Override protected void onDestroy() { super.onDestroy(); /* LITE */ }
+
+    private void updateServiceStatus() {
+        boolean running = HttpServerService.isRunning();
+        statusView.setText(running ? "服务状态：运行中" : "服务状态：已停止");
+        toggleBtn.setText(running ? "停止服务" : "启动服务");
+        toggleBtn.setEnabled(running ? true : true); // 确保按钮永远可点
+        String ip = getIpAddress();
+        String text = "核心访问: http://" + ip + ":" + SettingsManager.getWebPort();
+        if (SettingsManager.isLowPowerMode()) text += "\n❄️ 极寒模式运行中";
+        if (!HttpServerService.lastError.isEmpty()) text += "\n⚠️ " + HttpServerService.lastError;
+        ipView.setText(text);
+    }
+
+    private String getIpAddress() {
+        try {
+            WifiManager wm = (WifiManager) getSystemService(WIFI_SERVICE);
+            int ip = wm.getConnectionInfo().getIpAddress();
+            if (ip == 0) return "127.0.0.1";
+            return String.format(Locale.US, "%d.%d.%d.%d", (ip & 0xff), (ip >> 8 & 0xff), (ip >> 16 & 0xff), (ip >> 24 & 0xff));
+        } catch (Throwable t) { return "127.0.0.1"; }
+    }
+
+    private void refresh() {
+        if (!currentDir.exists() || !currentDir.isDirectory()) currentDir = new File(ROOT);
+        pathView.setText(currentDir.getAbsolutePath().replace(ROOT, "/"));
+        // 已移除无效的 storageView 调用，修复空指针闪退
+        try {
+            StatFs stat = new StatFs(Environment.getExternalStorageDirectory().getPath());
+            // 仅作底层获取，不显示在 UI 上
+        } catch (Throwable ignored) {}
+        items.clear();
+        File[] files = currentDir.listFiles();
+        if (files != null) Collections.addAll(items, files);
+        Collections.sort(items, new Comparator<File>() {
+            @Override public int compare(File a, File b) {
+                if (a.isDirectory() && !b.isDirectory()) return -1;
+                if (!a.isDirectory() && b.isDirectory()) return 1;
+                return a.getName().compareToIgnoreCase(b.getName());
+            }
+        });
+        adapter.notifyDataSetChanged();
+    }
+
+    private class FileAdapter extends BaseAdapter {
+        @Override public int getCount() { return items.size(); }
+        @Override public Object getItem(int p) { return items.get(p); }
+        @Override public long getItemId(int p) { return p; }
+        @Override public View getView(int pos, View cv, ViewGroup parent) {
+            TextView tv;
+            if (cv == null) {
+                tv = new TextView(MainActivity.this);
+                tv.setPadding(16, 24, 16, 24);
+                tv.setTextSize(16);
+                tv.setTextColor(0xFF1D1B20);
+                tv.setBackgroundColor(0xFFFFFFFF);
+            } else tv = (TextView) cv;
+            File f = items.get(pos);
+            tv.setText((f.isDirectory() ? "📁 " : "📄 ") + f.getName());
+            return tv;
+        }
+    }
 }

@@ -3,36 +3,62 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>Android NAS Lite</title>
+<title>Android NAS</title>
 <style>
 :root {
-  --primary: #6750A4; --on-primary: #FFFFFF; --primary-container: #EADDFF; --on-primary-container: #21005D;
-  --surface: #FEF7FF; --on-surface: #1D1B20; --surface-variant: #E7E0EC; --on-surface-variant: #49454F;
-  --outline: #79747E; --error: #B3261E; --error-container: #F9DEDC; --on-error-container: #410E0B;
-  --scrim: rgba(0,0,0,0.32); --shadow: 0 2px 6px 2px rgba(0,0,0,0.15), 0 1px 2px rgba(0,0,0,0.3);
+  --primary: #6750A4;
+  --on-primary: #FFFFFF;
+  --primary-container: #EADDFF;
+  --on-primary-container: #21005D;
+  --surface: #FEF7FF;
+  --on-surface: #1D1B20;
+  --surface-variant: #E7E0EC;
+  --on-surface-variant: #49454F;
+  --outline: #79747E;
+  --error: #B3261E;
+  --error-container: #F9DEDC;
+  --on-error-container: #410E0B;
+  --scrim: rgba(0,0,0,0.32);
+  --shadow: 0 2px 6px 2px rgba(0,0,0,0.15), 0 1px 2px rgba(0,0,0,0.3);
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --primary: #D0BCFF; --on-primary: #381E72; --primary-container: #4F378B; --on-primary-container: #EADDFF;
-    --surface: #141218; --on-surface: #E6E0E9; --surface-variant: #49454F; --on-surface-variant: #CAC4D0;
-    --outline: #938F99; --error: #F2B8B5; --error-container: #8C1D18; --on-error-container: #F9DEDC;
+    --primary: #D0BCFF;
+    --on-primary: #381E72;
+    --primary-container: #4F378B;
+    --on-primary-container: #EADDFF;
+    --surface: #141218;
+    --on-surface: #E6E0E9;
+    --surface-variant: #49454F;
+    --on-surface-variant: #CAC4D0;
+    --outline: #938F99;
+    --error: #F2B8B5;
+    --error-container: #8C1D18;
+    --on-error-container: #F9DEDC;
     --shadow: 0 2px 6px 2px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.5);
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 body { font-family: system-ui, -apple-system, sans-serif; background: var(--surface); color: var(--on-surface); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+/* 顶部导航 */
 header { display: flex; align-items: center; padding: 8px 16px; background: var(--surface); border-bottom: 1px solid var(--outline); z-index: 10; gap: 8px; }
 .icon-btn { background: transparent; border: none; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; color: var(--on-surface-variant); cursor: pointer; transition: background 0.2s; flex-shrink: 0; }
 .icon-btn:active { background: var(--surface-variant); }
 .header-title { flex: 1; font-size: 18px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--on-surface); padding-left: 8px; }
+
+/* 搜索栏 */
 .search-bar { display: none; padding: 8px 16px; background: var(--surface); border-bottom: 1px solid var(--outline); }
 .search-bar.active { display: flex; gap: 8px; }
 .search-bar input { flex: 1; padding: 10px 16px; border-radius: 24px; border: 1px solid var(--outline); background: transparent; color: var(--on-surface); font-size: 16px; outline: none; }
 .search-bar input:focus { border-color: var(--primary); }
+
+/* 极寒/全盘警告 */
 .banner { display: none; padding: 8px 16px; font-size: 14px; text-align: center; }
 #lowPowerHint { background: var(--error-container); color: var(--on-error-container); }
-#weakPwdWarning { background: #B3261E; color: white; font-weight: bold; }
-#httpsWarning { background: #4CAF50; color: white; }
+#globalModeWarning { background: #FF9800; color: #FFF; }
+
+/* 文件列表 */
 main { flex: 1; overflow-y: auto; padding: 8px 0 100px 0; }
 .item { display: flex; align-items: center; padding: 12px 16px; gap: 16px; cursor: pointer; transition: background 0.2s; }
 .item:active { background: var(--surface-variant); }
@@ -42,8 +68,12 @@ main { flex: 1; overflow-y: auto; padding: 8px 0 100px 0; }
 .item-detail { font-size: 12px; color: var(--on-surface-variant); }
 .more-btn { background: transparent; border: none; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; color: var(--on-surface-variant); cursor: pointer; flex-shrink: 0; }
 .more-btn:active { background: var(--surface-variant); }
+
+/* FAB 上传按钮 */
 .fab { position: fixed; bottom: 24px; right: 24px; width: 56px; height: 56px; border-radius: 16px; background: var(--primary-container); color: var(--on-primary-container); font-size: 24px; border: none; box-shadow: var(--shadow); cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 20; transition: transform 0.2s; }
 .fab:active { transform: scale(0.95); }
+
+/* 弹窗 (Dialog) */
 .modal { display: none; position: fixed; inset: 0; background: var(--scrim); z-index: 100; align-items: center; justify-content: center; padding: 16px; }
 .modal.show { display: flex; }
 .dialog { background: var(--surface); border-radius: 28px; padding: 24px; width: 100%; max-width: 400px; max-height: 90vh; display: flex; flex-direction: column; box-shadow: var(--shadow); }
@@ -55,9 +85,13 @@ main { flex: 1; overflow-y: auto; padding: 8px 0 100px 0; }
 .btn-red { color: var(--error); }
 .btn-red:active { background: var(--error-container); }
 .btn-filled { background: var(--primary); color: var(--on-primary); border: none; padding: 10px 24px; border-radius: 20px; font-size: 14px; font-weight: 500; cursor: pointer; }
-input[type="text"], input[type="password"], input[type="number"], textarea { width: 100%; padding: 12px 16px; border-radius: 8px; border: 1px solid var(--outline); background: transparent; color: var(--on-surface); font-size: 16px; font-family: inherit; outline: none; }
-input:focus, textarea:focus { border-color: var(--primary); border-width: 2px; padding: 11px 15px; }
+
+/* 输入框 */
+input[type="text"], textarea { width: 100%; padding: 12px 16px; border-radius: 8px; border: 1px solid var(--outline); background: transparent; color: var(--on-surface); font-size: 16px; font-family: inherit; outline: none; }
+input[type="text"]:focus, textarea:focus { border-color: var(--primary); border-width: 2px; padding: 11px 15px; }
 textarea { height: 200px; resize: vertical; font-family: monospace; }
+
+/* Bottom Sheet 弹窗 (移动端操作) */
 .sheet-modal { display: none; position: fixed; inset: 0; background: var(--scrim); z-index: 100; align-items: flex-end; justify-content: center; }
 .sheet-modal.show { display: flex; }
 .sheet { background: var(--surface); width: 100%; max-width: 500px; border-radius: 28px 28px 0 0; padding: 12px 0; max-height: 80vh; overflow-y: auto; }
@@ -65,124 +99,376 @@ textarea { height: 200px; resize: vertical; font-family: monospace; }
 .sheet-item { display: flex; align-items: center; padding: 16px 24px; font-size: 16px; cursor: pointer; gap: 16px; color: var(--on-surface); }
 .sheet-item:active { background: var(--surface-variant); }
 .sheet-item.danger { color: var(--error); }
+
+/* Toast & 进度条 */
 #toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 12px 24px; border-radius: 8px; font-size: 14px; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 200; white-space: nowrap; }
 #toast.show { opacity: 1; }
 #uploadProgress { position: fixed; bottom: 0; left: 0; height: 4px; background: var(--primary); width: 0%; transition: width 0.2s; z-index: 30; }
+
+/* 终端特有样式 */
+#termOutput { background: #000; color: #0f0; padding: 10px; font-family: monospace; height: 250px; overflow-y: auto; border-radius: 8px; margin-bottom: 16px; white-space: pre-wrap; font-size: 13px; }
+
+/* 媒体预览 */
 .media-preview { width: 100%; max-height: 60vh; border-radius: 8px; }
 .empty-state { text-align: center; padding: 40px; color: var(--on-surface-variant); }
+
+/* 端口大盘 MD3 样式 */
+.ports-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 16px; }
+.port-pill { 
+  display: flex; align-items: center; gap: 8px; 
+  padding: 10px 16px; border-radius: 50px; 
+  background: var(--surface-variant); color: var(--on-surface-variant); 
+  font-size: 13px; font-weight: 500;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  transition: background 0.2s;
+}
+.port-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.port-dot.online { background: #4CAF50; box-shadow: 0 0 6px rgba(76,175,80,0.6); }
+.port-dot.offline { background: #FFC107; }
+.port-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.port-port { font-family: monospace; opacity: 0.7; font-size: 12px; }
+
+
+/* MD3 图标基础样式 */
+.md-icon {
+    width: 24px; height: 24px; fill: currentColor;
+    display: inline-block; vertical-align: middle; flex-shrink: 0;
+}
+.icon-btn svg { width: 24px; height: 24px; fill: var(--on-surface-variant); }
 </style>
+    <script src="https://cdn.jsdelivr.net/npm/jmuxer@2.0.5/dist/jmuxer.min.js"></script>
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://vjs.zencdn.net/8.6.1/video-js.css" rel="stylesheet" />
     <script src="https://vjs.zencdn.net/8.6.1/video.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/spark-md5/3.0.2/spark-md5.min.js"></script>
+    
     <link rel="manifest" href="/manifest.json">
-    <script>if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js'); }</script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js');
+      }
+    </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/spark-md5/3.0.2/spark-md5.min.js"></script>
 </head>
 <body>
+
+<style>
+.media-card { text-align: center; }
+.media-card img { width: 100%; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
+.media-title { margin-top: 8px; font-size: 14px; font-weight: bold; }
+.monitor-row { margin-bottom: 16px; }
+.monitor-label { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 4px; }
+.monitor-bar-bg { width: 100%; height: 8px; background: #EADDFF; border-radius: 4px; overflow: hidden; }
+.monitor-bar-fill { height: 100%; background: #6750A4; transition: 0.5s; }
+
+/* 端口大盘 MD3 样式 */
+.ports-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 16px; }
+.port-pill { 
+  display: flex; align-items: center; gap: 8px; 
+  padding: 10px 16px; border-radius: 50px; 
+  background: var(--surface-variant); color: var(--on-surface-variant); 
+  font-size: 13px; font-weight: 500;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  transition: background 0.2s;
+}
+.port-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.port-dot.online { background: #4CAF50; box-shadow: 0 0 6px rgba(76,175,80,0.6); }
+.port-dot.offline { background: #FFC107; }
+.port-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.port-port { font-family: monospace; opacity: 0.7; font-size: 12px; }
+
+
+/* MD3 图标基础样式 */
+.md-icon {
+    width: 24px; height: 24px; fill: currentColor;
+    display: inline-block; vertical-align: middle; flex-shrink: 0;
+}
+.icon-btn svg { width: 24px; height: 24px; fill: var(--on-surface-variant); }
+</style>
+
+<div id="monitorModal" class="modal" onclick="closeModal('monitorModal')">
+  <div class="dialog" onclick="event.stopPropagation()">
+    <div class="dialog-title">📊 服务端硬件监控</div>
+    <div class="dialog-content">
+        <div class="monitor-row"><div class="monitor-label"><span>CPU 占用</span><span id="cpuText">-</span></div><div class="monitor-bar-bg"><div class="monitor-bar-fill" id="barCpu"></div></div></div>
+        <div class="monitor-row"><div class="monitor-label"><span>内存使用</span><span id="memText">-</span></div><div class="monitor-bar-bg"><div class="monitor-bar-fill" id="barMem"></div></div></div>
+        <div class="monitor-row"><div class="monitor-label"><span>存储空间</span><span id="storeText">-</span></div><div class="monitor-bar-bg"><div class="monitor-bar-fill" id="barStore"></div></div></div>
+        <div class="monitor-row"><div class="monitor-label"><span>电池电量</span><span id="battText">-</span></div><div class="monitor-bar-bg"><div class="monitor-bar-fill" id="barBatt"></div></div></div>
+    </div>
+    <div class="dialog-actions"><button class="btn-text" onclick="closeModal('monitorModal')">关闭</button></div>
+  </div>
+</div>
+
+<div id="usersModal" class="modal" onclick="closeModal('usersModal')">
+  <div class="dialog" onclick="event.stopPropagation()">
+    <div class="dialog-title">👥 多用户管理</div>
+    <div class="dialog-content">
+        <table style="width:100%; text-align:left; margin-bottom:16px;">
+            <thead><tr><th>用户名</th><th>角色</th><th>根目录</th></tr></thead>
+            <tbody id="userList"></tbody>
+        </table>
+        <h4>添加新用户</h4>
+        <input type="text" id="newUser" placeholder="用户名" style="margin-bottom:8px;">
+        <input type="text" id="newPass" placeholder="密码" style="margin-bottom:8px;">
+        <button class="btn-filled" onclick="addUser()">添加用户</button>
+    </div>
+    <div class="dialog-actions"><button class="btn-text" onclick="closeModal('usersModal')">关闭</button></div>
+  </div>
+</div>
+
+
 <header>
-  <button class="icon-btn" id="btnBack" onclick="goUp()">←</button>
+  <button class="icon-btn" id="btnBack" onclick="goUp()"><svg class="md-icon" viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg></button>
   <div class="header-title" id="pathTitle">/</div>
-  <button class="icon-btn" onclick="toggleSearch()">🔍</button>
-  <button class="icon-btn" onclick="showMainMenu()">⋮</button>
+  <button class="icon-btn" onclick="toggleSearch()"><svg class="md-icon" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg></button>
+  <button class="icon-btn" onclick="showMainMenu()"><svg class="md-icon" viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg></button>
 </header>
+
 <div class="search-bar" id="searchBar">
   <input type="text" id="searchInput" placeholder="全局搜索文件..." onkeydown="if(event.key==='Enter') doSearch()">
   <button class="btn-text" onclick="doSearch()">搜索</button>
 </div>
-<div id="weakPwdWarning" class="banner">⚠️ 正在使用默认密码 admin，请立即前往【系统设置】修改！</div>
-<div id="httpsWarning" class="banner">🛡️ 当前连接已使用 HTTPS 加密传输</div>
+
+<div id="globalModeWarning" class="banner">⚠️ 已开启全盘 Root 模式，请小心操作！</div>
+<div id="weakPwdWarning" class="banner" style="background:#B3261E; color:white; display:none; font-weight:bold;">⚠️ 正在使用默认密码 admin，请立即前往【系统设置】修改！</div>
+<div id="httpsWarning" class="banner" style="background:#4CAF50; color:white; display:none;">🛡️ 当前连接已使用 HTTPS 加密传输</div>
 <div id="lowPowerHint" class="banner">❄️ 服务端处于极寒省电模式</div>
-<main id="list"><div class="empty-state">加载中...</div></main>
+
+<main id="list">
+  <div class="empty-state">加载中...</div>
+</main>
+
 <button class="fab" onclick="document.getElementById('fileInput').click()">+</button>
 <input type="file" id="fileInput" multiple style="display:none" onchange="uploadFiles(this.files)">
+
+<!-- 顶部的全局菜单 -->
 <div id="mainMenu" class="sheet-modal" onclick="closeSheet('mainMenu')">
   <div class="sheet" onclick="event.stopPropagation()">
     <div class="sheet-handle"></div>
     <div class="sheet-item" onclick="showMkdir()">📁 新建文件夹</div>
     <div class="sheet-item" onclick="showClipboard()">📋 局域网剪贴板</div>
+    <div class="sheet-item" onclick="showMonitor()">📊 硬件仪表盘</div>
+    <div class="sheet-item" onclick="showUsers()">👥 用户管理</div>
+    <div class="sheet-item" onclick="showMediaWall()">🎬 影视海报墙</div>
+    <div class="sheet-item" onclick="showPhotos()">🖼️ 时光相册</div>
     <div class="sheet-item" onclick="checkOta()">🚀 检查更新 (OTA)</div>
+            <div class="sheet-item" onclick="showPorts()">📡 服务状态大盘</div>
     <div class="sheet-item" onclick="showSettings()">⚙️ 系统设置</div>
     <div class="sheet-item" onclick="showAbout()">ℹ️ 关于</div>
   </div>
 </div>
+
+<!-- 文件操作菜单 -->
 <div id="fileMenu" class="sheet-modal" onclick="closeSheet('fileMenu')">
   <div class="sheet" onclick="event.stopPropagation()">
     <div class="sheet-handle"></div>
     <div id="fileMenuItems"></div>
   </div>
 </div>
+
+<!-- 文本编辑 -->
 <div id="editModal" class="modal" onclick="closeModal('editModal')">
   <div class="dialog" onclick="event.stopPropagation()">
     <div class="dialog-title" id="editFileName">编辑文本</div>
-    <div class="dialog-content"><textarea id="editContent" placeholder="文件内容..."></textarea></div>
-    <div class="dialog-actions"><button class="btn-text" onclick="closeModal('editModal')">取消</button><button class="btn-filled" onclick="doSave()">保存</button></div>
+    <div class="dialog-content">
+      <textarea id="editContent" placeholder="文件内容..."></textarea>
+    </div>
+    <div class="dialog-actions">
+      <button class="btn-text" onclick="closeModal('editModal')">取消</button>
+      <button class="btn-filled" onclick="doSave()">保存</button>
+    </div>
   </div>
 </div>
+
+<!-- 新建文件夹 -->
 <div id="mkdirModal" class="modal" onclick="closeModal('mkdirModal')">
   <div class="dialog" onclick="event.stopPropagation()">
     <div class="dialog-title">新建文件夹</div>
-    <div class="dialog-content"><input type="text" id="newDirName" placeholder="文件夹名称"></div>
-    <div class="dialog-actions"><button class="btn-text" onclick="closeModal('mkdirModal')">取消</button><button class="btn-filled" onclick="doMkdir()">创建</button></div>
+    <div class="dialog-content">
+      <input type="text" id="newDirName" placeholder="文件夹名称">
+    </div>
+    <div class="dialog-actions">
+      <button class="btn-text" onclick="closeModal('mkdirModal')">取消</button>
+      <button class="btn-filled" onclick="doMkdir()">创建</button>
+    </div>
   </div>
 </div>
+
+<!-- 剪贴板 -->
 <div id="clipModal" class="modal" onclick="closeModal('clipModal')">
   <div class="dialog" onclick="event.stopPropagation()">
     <div class="dialog-title">局域网剪贴板</div>
-    <div class="dialog-content"><textarea id="clipContent" style="height:150px" placeholder="在此输入内容同步至服务端..."></textarea></div>
-    <div class="dialog-actions"><button class="btn-text" onclick="closeModal('clipModal')">关闭</button><button class="btn-filled" onclick="saveClipboard()">同步保存</button></div>
+    <div class="dialog-content">
+      <textarea id="clipContent" style="height:150px" placeholder="在此输入内容同步至服务端..."></textarea>
+    </div>
+    <div class="dialog-actions">
+      <button class="btn-text" onclick="closeModal('clipModal')">关闭</button>
+      <button class="btn-filled" onclick="saveClipboard()">同步保存</button>
+    </div>
   </div>
 </div>
+
+<!-- 终端 -->
+
+<!-- 远程桌面浮层 -->
+    <div style="padding: 12px; display: flex; justify-content: space-between;">
+        <button id="btnSwitchMode" class="btn-text" onclick="switchRemoteMode()" style="color:#D0BCFF;">切换到截图流</button>
+        <button class="btn-text" onclick="stopRemote(); closeModal('remoteModal');">断开连接</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- 关于 -->
+
+
+<div id="portsModal" class="modal" onclick="closeModal('portsModal')">
+  <div class="dialog" onclick="event.stopPropagation()" style="max-width: 500px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div class="dialog-title" style="margin: 0;">📡 服务状态</div>
+        <div id="portsLatency" style="font-size: 13px; color: var(--primary); font-family: monospace;">检测中...</div>
+    </div>
+    <div id="portList" class="ports-grid">
+        <!-- 胶囊由 JS 渲染 -->
+    </div>
+    <div class="dialog-actions" style="margin-top: 24px;">
+        <button class="btn-text" onclick="closeModal('portsModal')">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 设置控制台 -->
 <div id="settingsModal" class="modal" onclick="closeModal('settingsModal')">
   <div class="dialog" onclick="event.stopPropagation()" style="max-width: 500px;">
     <div class="dialog-title">⚙️ 系统设置</div>
     <div class="dialog-content" id="settingsBody" style="display:flex; flex-direction:column; gap:12px;">
-      <label>设备名称：<input type="text" id="setAlias" /></label>
-      <label>Web 端口：<input type="number" id="setWebPort" /></label>
-      <label>WebDAV 端口：<input type="number" id="setDavPort" /></label>
-      <label>FTP 端口：<input type="number" id="setFtpPort" /></label>
-      <div style="margin-top:8px;">
+
+      <!-- 基础设备配置 -->
+      <div style="margin-bottom:16px; border-bottom:1px solid var(--outline); padding-bottom:16px;">
+        <label>设备名称：<input type="text" id="setAlias" /></label>
+        <label style="margin-top:8px; display:block;">Web 端口：<input type="number" id="setWebPort" /></label>
+        <label style="margin-top:8px; display:block;">WebDAV 端口：<input type="number" id="setDavPort" /></label>
+        <label style="margin-top:8px; display:block;">FTP 端口：<input type="number" id="setFtpPort" /></label>
+      </div>
+
+      <!-- 协议开关 -->
+      <div style="margin-bottom:16px; border-bottom:1px solid var(--outline); padding-bottom:16px;">
         <label><input type="checkbox" id="setWebDav" /> 开启 WebDAV</label><br>
         <label><input type="checkbox" id="setFtp" /> 开启 FTP</label><br>
+        <label><input type="checkbox" id="setDlna" /> 开启 DLNA</label><br>
         <label><input type="checkbox" id="setStream" /> 开启网页流媒体</label><br>
         <label><input type="checkbox" id="setClipboard" /> 开启局域网剪贴板</label><br>
+        <label><input type="checkbox" id="setGlobal" /> 开启全盘模式 (需 Root)</label>
         <label><input type="checkbox" id="setLowPower" /> 开启极寒省电模式</label>
-        <label><input type="checkbox" id="setFail2Ban" /> 🛡️ 开启防爆破 (连续输错锁IP)</label>
-        <label><input type="checkbox" id="setPinRequired" /> 🚨 敏感操作需要安全码</label>
-        <label><input type="checkbox" id="setAuditEnabled" /> 📝 开启安全审计日志</label>
-        <label><input type="checkbox" id="setIpWhitelistEnabled" /> 🛡️ 开启 IP 白名单访问</label>
-        <input type="text" id="setIpWhitelist" placeholder="如 192.168.1.*,127.0.0.1" style="margin-top:8px;">
-        <button class="btn-text" onclick="showAudit()" style="color:var(--primary); margin-top:8px;">查看审计日志</button>
       </div>
-      <div style="margin-top:16px; border-top:1px solid var(--outline); padding-top:12px;">
+
+      <!-- 🛡️ 高级安全控制台 -->
+      <div style="margin-bottom:16px; border-bottom:2px dashed var(--primary); padding-bottom:16px; background: var(--surface-variant); padding: 12px; border-radius: 12px;">
+        <h4 style="color:var(--primary); margin-bottom:12px; font-size:15px;">🛡️ 高级安全控制台</h4>
+        
+        <label><input type="checkbox" id="setFail2Ban" /> 防爆破 (连续输错锁 IP)</label><br>
+        <label style="margin-top:6px; display:block;"><input type="checkbox" id="setCcLimit" /> 防 CC 限流 (单 IP 每秒 30 次)</label>
+        <label style="margin-top:6px; display:block;"><input type="checkbox" id="setCaptcha" /> 算数验证码 (被锁时弹出)</label>
+        
+        <label style="margin-top:6px; display:block;"><input type="checkbox" id="setIpWhitelistEnabled" /> 开启 IP 白名单访问</label>
+        <input type="text" id="setIpWhitelist" placeholder="如 192.168.1.*,127.0.0.1" style="margin-top:4px; margin-bottom:8px;">
+        
+        <label style="margin-top:6px; display:block;"><input type="checkbox" id="setLanOnly" /> 🚨 高危操作仅限局域网</label>
+        <label style="margin-top:6px; display:block;"><input type="checkbox" id="setHideHeader" /> 隐藏 Server 响应头 (防扫描)</label>
+        
+        <label style="margin-top:6px; display:block;"><input type="checkbox" id="setPinRequired" /> 敏感操作需要紧急安全码</label>
+        <label style="margin-top:6px; display:block;"><input type="checkbox" id="setAuditEnabled" /> 开启安全审计日志</label>
+        
+        <label style="margin-top:12px; display:block;">隐藏入口暗号 (留空关闭):</label>
+        <input type="text" id="setSecretPath" placeholder="如 mysecret，访问需加 ?s=mysecret">
+        
+        <label style="margin-top:12px; display:block;">闲置自动登出 (分钟，0为不登出):</label>
+        <input type="number" id="setSessionTimeout" value="30">
+        
+        <button class="btn-text" onclick="showAudit()" style="color:var(--primary); margin-top:12px; font-weight:bold;">查看审计日志</button>
+      </div>
+
+      <!-- 🔐 2FA 两步验证 -->
+      <div style="margin-bottom:16px; border-bottom:1px solid var(--outline); padding-bottom:16px;">
+        <label style="font-weight:bold; color:var(--primary);">🔐 两步验证 (2FA)</label>
+        <div style="display:flex; align-items:center; gap:8px; margin-top:8px;">
+            <input type="checkbox" id="set2FA" onchange="toggle2FA(this.checked)">
+            <span>启用 2FA 保护</span>
+        </div>
+        <div id="2faSecretBox" style="display:none; margin-top:8px; background:var(--surface-variant); padding:8px; border-radius:8px;">
+            <p style="font-size:12px; margin-bottom:4px;">密钥 (添加到 Authenticator):</p>
+            <code id="2faSecretText" style="font-size:14px; font-weight:bold; color:var(--primary);"></code>
+        </div>
+      </div>
+
+      <!-- Webhook 与密码 -->
+      <div style="margin-bottom:16px;">
         <label>修改管理员密码：<input type="password" id="setPassword" placeholder="不修改请留空" /></label>
-      </div>
-      <div style="margin-top:12px;">
-        <label>Webhook URL (支持 TG/企微): <input type="text" id="setWebhook" placeholder="https://..." /></label>
-        <label style="margin-top:8px;">Telegram Chat ID: <input type="text" id="setChatId" placeholder="仅 TG 需要" /></label>
+        <label style="margin-top:12px; display:block;">Webhook URL (支持 TG/企微): <input type="text" id="setWebhook" placeholder="https://..." /></label>
+        <label style="margin-top:8px; display:block;">Telegram Chat ID: <input type="text" id="setChatId" placeholder="仅 TG 需要" /></label>
         <button class="btn-text" onclick="testWebhook()" style="margin-top:8px; color:var(--primary);">测试推送</button>
+        <textarea id="setWebhookTemplate" placeholder='自定义 JSON 模板' style="margin-top:8px; height:80px;"></textarea>
       </div>
-    </div>
-    <div class="dialog-actions">
+
+      <!-- 紧急安全码更新 -->
+      <div style="margin-top:16px; border-top:1px solid var(--outline); padding-top:12px;">
+          <label style="font-weight:bold; color:var(--error);">🚨 紧急安全码</label>
+          <input type="password" id="setPin" placeholder="输入新的 4 位安全码" style="margin-top:8px;">
+          <button class="btn-text" onclick="updatePin()" style="color:var(--primary); margin-top:8px;">更新安全码</button>
+          <button class="btn-text" onclick="showSessions()" style="color:var(--primary); margin-top:8px;">查看在线设备</button>
+      </div>
+
+      <!-- 自毁核弹 -->
+      <div style="margin-top:32px; border-top:2px dashed var(--error); padding-top:16px;">
+        <h4 style="color:var(--error); margin-bottom:8px;">☢️ 终极自毁程序 (Panic Wipe)</h4>
+        <button id="btnWipe" class="btn-filled" style="background:var(--error); color:white; width:100%;" onclick="triggerWipe()">执行自毁</button>
+      </div>
+    
+</div>
+<div class="dialog-actions">
       <button class="btn-text" onclick="closeModal('settingsModal')">取消</button>
-      <button class="btn-filled" onclick="saveSettings()">保存并重启服务</button>
+      <div style="margin-top:16px; border-top:1px solid var(--outline); padding-top:12px;">
+          <label style="font-weight:bold; color:var(--error);">🚨 紧急安全码 (高危操作必填)</label>
+          <input type="password" id="setPin" placeholder="输入新的 4 位安全码" style="margin-top:8px;">
+          <button class="btn-text" onclick="updatePin()" style="color:var(--primary); margin-top:8px;">更新安全码</button>
+          <button class="btn-text" onclick="showSessions()" style="color:var(--primary); margin-top:8px;">查看在线设备</button>
+        </div>
+        
+      <div style="margin-top:32px; border-top:2px dashed var(--error); padding-top:16px;">
+        <h4 style="color:var(--error); margin-bottom:8px;">☢️ 终极自毁程序 (Panic Wipe)</h4>
+        <p style="font-size:12px; color:var(--on-surface-variant); margin-bottom:12px;">警告：这将永久删除 NAS 上的所有文件。如果开启了 Root 模式，设备将被彻底格式化并重启。此操作不可逆。</p>
+        <button id="btnWipe" class="btn-filled" style="background:var(--error); color:white; width:100%;" onclick="triggerWipe()">执行自毁</button>
+      </div>
+
+        <button class="btn-filled" style="margin-top:24px;" onclick="saveSettings()">保存并重启服务</button>
     </div>
   </div>
 </div>
 <div id="aboutModal" class="modal" onclick="closeModal('aboutModal')">
   <div class="dialog" onclick="event.stopPropagation()">
-    <div class="dialog-title" style="color:var(--primary)">关于 Android NAS Lite</div>
-    <div class="dialog-content" style="line-height:1.6; color:var(--on-surface-variant)">版本: v4.4.0-lite.1<br><br>支持流媒体、局域网剪贴板、在线解压、全局搜索、PWA、断点续传与顶级安全防御。</div>
-    <div class="dialog-actions"><button class="btn-text" onclick="closeModal('aboutModal')">确定</button></div>
+    <div class="dialog-title" style="color:var(--primary)">关于 Android NAS</div>
+    <div class="dialog-content" style="line-height:1.6; color:var(--on-surface-variant)">
+      版本: v4.4.1 旗舰版<br><br>
+      支持流媒体、局域网剪贴板、在线解压、全局搜索、Root 全盘与终端。
+    </div>
+    <div class="dialog-actions">
+      <button class="btn-text" onclick="closeModal('aboutModal')">确定</button>
+    </div>
   </div>
 </div>
+
+<!-- 媒体预览 -->
 <div id="previewModal" class="modal" onclick="closeModal('previewModal')">
   <div class="dialog" onclick="event.stopPropagation()" style="max-width: 800px; background: var(--surface-variant);">
     <div class="dialog-title" id="previewTitle" style="color: var(--on-surface-variant);">预览</div>
     <div class="dialog-content" id="previewBody" style="text-align:center;"></div>
-    <div class="dialog-actions"><button class="btn-text" onclick="closeModal('previewModal')">关闭</button></div>
+    <div class="dialog-actions">
+      <button class="btn-text" onclick="closeModal('previewModal')">关闭</button>
+    </div>
   </div>
 </div>
+
 <div id="shareModal" class="sheet-modal" onclick="closeSheet('shareModal')">
   <div class="sheet" onclick="event.stopPropagation()">
     <div class="sheet-handle"></div>
@@ -203,23 +489,72 @@ textarea { height: 200px; resize: vertical; font-family: monospace; }
 </div>
 <div id="toast"></div>
 <div id="uploadProgress"></div>
+
 <script>
-var currentPath = "/", editingFile = "", currentFileToMenu = null;
+// 全局状态
+var currentPath = "/";
+var editingFile = "";
+var currentFileToMenu = null;
+
+// ================= 全局 Fetch 拦截 (401) =================
+
+var _needCaptcha = false;
 window.originalFetch = window.fetch;
 window.fetch = function(url, options) {
     if (!options) options = {};
     if (!options.headers) options.headers = {};
+    
     var auth = localStorage.getItem("nas_auth");
     if (auth) options.headers["Authorization"] = auth;
+    
+    var totp = localStorage.getItem("nas_2fa");
+    if (totp) options.headers["X-TOTP-Code"] = totp;
+    
+    var cap = localStorage.getItem("nas_captcha");
+    if (cap) options.headers["X-Captcha"] = cap;
+
+    var secret = localStorage.getItem("nas_secret");
+    if (secret && !/[?&]s=/.test(url)) {
+        url += (url.indexOf("?") === -1 ? "?" : "&") + "s=" + secret;
+    }
+    
     return window.originalFetch(url, options).then(res => {
         if (res.status === 401) {
-            if (window._authPrompting) return res;
+            var clone = res.clone();
+            clone.text().then(function(text) {
+                if (text === "2FA_REQUIRED") {
+                    var code = prompt("🔐 请输入 2FA 动态验证码:");
+                    if (code) { localStorage.setItem("nas_2fa", code); location.reload(); }
+                    else { localStorage.removeItem("nas_2fa"); }
+                } else if (text === "CAPTCHA_FAILED") {
+                    fetch("/api/captcha").then(r=>r.json()).then(d=>{
+                        var ans = prompt("🛡️ 触发安全验证，请计算: " + d.q);
+                        if (ans) {
+                            localStorage.setItem("nas_captcha", ans);
+                            location.reload();
+                        }
+                    });
+                }
+            });
+        }
+        return res;
+    });
+};
+
+    if (!options.headers) options.headers = {};
+    var auth = localStorage.getItem("nas_auth");
+    if (auth) options.headers["Authorization"] = auth;
+    
+    return window.originalFetch(url, options).then(res => {
+        if (res.status === 401) {
+                        if (window._authPrompting) return res;
             window._authPrompting = true;
             var user = prompt("请输入 NAS 账号:", "admin");
             if (user === null) { window._authPrompting = false; return res; }
             var pass = prompt("请输入密码:", "admin");
             if (pass === null) { window._authPrompting = false; return res; }
-            localStorage.setItem("nas_auth", "Basic " + btoa(unescape(encodeURIComponent(user + ":" + pass))));
+            localStorage.setItem("nas_auth", "Basic " + btoa(user + ":" + pass));
+            
             var ret = window.fetch(url, options);
             ret.then(function(){ window._authPrompting = false; }, function(){ window._authPrompting = false; });
             return ret;
@@ -227,114 +562,966 @@ window.fetch = function(url, options) {
         return res;
     });
 };
-function toast(msg) { var t = document.getElementById("toast"); t.textContent = msg; t.classList.add("show"); setTimeout(() => t.classList.remove("show"), 2000); }
+
+// ================= 工具函数 =================
+function toast(msg) {
+    var t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    setTimeout(() => t.classList.remove("show"), 2000);
+}
 function showModal(id) { document.getElementById(id).classList.add("show"); }
 function closeModal(id) { document.getElementById(id).classList.remove("show"); }
 function showSheet(id) { document.getElementById(id).classList.add("show"); }
 function closeSheet(id) { document.getElementById(id).classList.remove("show"); }
-function escapeHtml(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
-function checkStatus() { fetch("/api/status").then(r => r.json()).then(s => { document.getElementById("weakPwdWarning").style.display = s.isDefaultPwd ? "block" : "none"; document.getElementById("httpsWarning").style.display = s.httpsEnabled && location.protocol === "https:" ? "block" : "none"; document.getElementById("lowPowerHint").style.display = s.lowPower ? "block" : "none"; }).catch(() => {}); }
-function refresh() { closeSearch(); document.getElementById("pathTitle").textContent = currentPath; checkStatus(); fetch("/api/list?path=" + encodeURIComponent(currentPath)).then(r => r.json()).then(data => renderList(data.files)).catch(() => toast("列表加载失败")); }
+
+function escapeHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// ================= 核心加载逻辑 =================
+function checkStatus() {
+    fetch("/api/status").then(r => r.json()).then(s => {
+        document.getElementById("globalModeWarning").style.display = s.globalMode ? "block" : "none";
+        document.getElementById("weakPwdWarning").style.display = s.isDefaultPwd ? "block" : "none";
+        document.getElementById("httpsWarning").style.display = s.httpsEnabled && location.protocol === "https:" ? "block" : "none";
+        document.getElementById("lowPowerHint").style.display = s.lowPower ? "block" : "none";
+    }).catch(() => {});
+}
+
+function refresh() {
+    closeSearch();
+    document.getElementById("pathTitle").textContent = currentPath;
+    checkStatus();
+    fetch("/api/list?path=" + encodeURIComponent(currentPath))
+        .then(r => r.json())
+        .then(data => renderList(data.files))
+        .catch(() => toast("列表加载失败"));
+}
+
 function renderList(files) {
-    var list = document.getElementById("list"); list.innerHTML = "";
-    if (!files || files.length === 0) { list.innerHTML = '<div class="empty-state">空文件夹</div>'; return; }
+    var list = document.getElementById("list");
+    list.innerHTML = "";
+    if (!files || files.length === 0) {
+        list.innerHTML = '<div class="empty-state">空文件夹</div>';
+        return;
+    }
+    
     files.forEach(f => {
         var full = f.path || (currentPath.endsWith("/") ? currentPath + f.name : currentPath + "/" + f.name);
-        var div = document.createElement("div"); div.className = "item";
-        var icon = document.createElement("div"); icon.className = "item-icon"; icon.textContent = f.dir ? "📁" : "📄"; div.appendChild(icon);
-        var content = document.createElement("div"); content.className = "item-content";
-        content.innerHTML = `<div class="item-name">${escapeHtml(f.name)}</div><div class="item-detail">${f.dir ? "文件夹" : formatSize(f.size)}</div>`;
+        
+        var div = document.createElement("div");
+        div.className = "item";
+        
+        // 图标
+        var icon = document.createElement("div");
+        icon.className = "item-icon";
+        icon.textContent = f.dir ? "📁" : "📄";
+        div.appendChild(icon);
+        
+        // 文本
+        var content = document.createElement("div");
+        content.className = "item-content";
+        content.innerHTML = `<div class="item-name">${escapeHtml(f.name)}</div>
+                             <div class="item-detail">${f.dir ? "文件夹" : formatSize(f.size)}</div>`;
         div.appendChild(content);
-        var more = document.createElement("button"); more.className = "more-btn"; more.innerHTML = "⋮"; more.onclick = (e) => { e.stopPropagation(); openFileMenu(f, full); }; div.appendChild(more);
-        div.onclick = () => { if (f.dir) { currentPath = full; refresh(); } else { openFileMenu(f, full); } };
+        
+        // 右侧菜单按钮
+        var more = document.createElement("button");
+        more.className = "more-btn";
+        more.innerHTML = "⋮";
+        more.onclick = (e) => {
+            e.stopPropagation();
+            openFileMenu(f, full);
+        };
+        div.appendChild(more);
+        
+        // 点击主体
+        div.onclick = () => {
+            if (f.dir) {
+                currentPath = full;
+                refresh();
+            } else {
+                openFileMenu(f, full); // 点击文件也弹出菜单
+            }
+        };
         list.appendChild(div);
     });
 }
-function formatSize(size) { if (size < 1024) return size + " B"; if (size < 1024 * 1024) return (size / 1024).toFixed(1) + " KB"; return (size / 1024 / 1024).toFixed(1) + " MB"; }
-function goUp() { if (currentPath === "/") return; var parts = currentPath.replace(/\/$/, "").split("/"); parts.pop(); currentPath = parts.join("/") || "/"; refresh(); }
-function toggleSearch() { var bar = document.getElementById("searchBar"); bar.classList.toggle("active"); if (bar.classList.contains("active")) { document.getElementById("searchInput").focus(); } else { refresh(); } }
-function closeSearch() { document.getElementById("searchBar").classList.remove("active"); document.getElementById("searchInput").value = ""; }
-function doSearch() { var q = document.getElementById("searchInput").value; if (!q) { refresh(); return; } document.getElementById("pathTitle").textContent = "搜索: " + q; fetch("/api/search?q=" + encodeURIComponent(q)).then(r => r.json()).then(data => renderList(data)).catch(() => toast("搜索失败")); }
+
+function formatSize(size) {
+    if (size < 1024) return size + " B";
+    if (size < 1024 * 1024) return (size / 1024).toFixed(1) + " KB";
+    return (size / 1024 / 1024).toFixed(1) + " MB";
+}
+
+// ================= 导航与搜索 =================
+function goUp() {
+    if (currentPath === "/") return;
+    var parts = currentPath.replace(/\/$/, "").split("/");
+    parts.pop();
+    currentPath = parts.join("/") || "/";
+    refresh();
+}
+
+function toggleSearch() {
+    var bar = document.getElementById("searchBar");
+    bar.classList.toggle("active");
+    if (bar.classList.contains("active")) {
+        document.getElementById("searchInput").focus();
+    } else {
+        refresh();
+    }
+}
+
+function closeSearch() {
+    document.getElementById("searchBar").classList.remove("active");
+    document.getElementById("searchInput").value = "";
+}
+
+function doSearch() {
+    var q = document.getElementById("searchInput").value;
+    if (!q) { refresh(); return; }
+    document.getElementById("pathTitle").textContent = "搜索: " + q;
+    fetch("/api/search?q=" + encodeURIComponent(q))
+        .then(r => r.json())
+        .then(data => renderList(data))
+        .catch(() => toast("搜索失败"));
+}
+
+// ================= 文件操作菜单 (Bottom Sheet) =================
 function openFileMenu(f, fullPath) {
     currentFileToMenu = { item: f, path: fullPath };
-    var container = document.getElementById("fileMenuItems"); container.innerHTML = "";
+    var container = document.getElementById("fileMenuItems");
+    container.innerHTML = "";
+    
     var ext = f.name.includes(".") ? f.name.split('.').pop().toLowerCase() : "";
     var isMedia = ["jpg","jpeg","png","gif","webp","mp4","mp3","mkv","webm","wav"].includes(ext);
     var isText = ["txt","md","json","java","html","xml","js","css","py","log","ini"].includes(ext);
-    function addItem(text, icon, onClick, isDanger) { var div = document.createElement("div"); div.className = "sheet-item" + (isDanger ? " danger" : ""); div.innerHTML = `<span>${icon}</span> <span>${text}</span>`; div.onclick = () => { closeSheet("fileMenu"); onClick(); }; container.appendChild(div); }
-    if (!f.dir) { if (isMedia) addItem("预览/播放", "▶️", () => previewFile(f, ext)); if (isText) addItem("修改/编辑", "✏️", () => editFile(f, fullPath)); if (ext === "zip") addItem("解压", "📦", () => unzipFile(fullPath)); addItem("下载", "📥", () => { fetch("/api/share", {method:"POST", body:new URLSearchParams({path:fullPath})}).then(r=>r.text()).then(t=>{window.location.href="/share/"+t;}); }); addItem("分享", "🔗", () => shareFile(fullPath)); addItem("重命名", "🏷️", () => renameFile(f, fullPath)); }
-    addItem("删除", "🗑️", () => delFile(fullPath), true); showSheet("fileMenu");
+    
+    function addItem(text, icon, onClick, isDanger) {
+        var div = document.createElement("div");
+        div.className = "sheet-item" + (isDanger ? " danger" : "");
+        div.innerHTML = `<span>${icon}</span> <span>${text}</span>`;
+        div.onclick = () => { closeSheet("fileMenu"); onClick(); };
+        container.appendChild(div);
+    }
+    
+    if (!f.dir) {
+        if (isMedia) addItem("预览/播放", "▶️", () => previewFile(f, ext));
+        if (isText) addItem("修改/编辑", "✏️", () => editFile(f, fullPath));
+        if (ext === "zip") addItem("解压", "📦", () => unzipFile(fullPath));
+        
+        addItem("下载", "📥", () => {
+            fetch("/api/share", {method:"POST", body:new URLSearchParams({path:fullPath})}).then(r=>r.text()).then(t=>{window.location.href="/share/"+t;});
+        });
+        addItem("分享", "🔗", () => shareFile(fullPath));
+        addItem("重命名", "🏷️", () => renameFile(f, fullPath));
+    }
+    
+    addItem("删除", "🗑️", () => delFile(fullPath), true);
+    showSheet("fileMenu");
 }
+
+// ================= 具体操作实现 =================
+function openPlayer(url, ext) {
+    document.getElementById('previewTitle').textContent = '播放';
+    var body = document.getElementById('previewBody');
+    if (['jpg','jpeg','png'].includes(ext)) body.innerHTML = '<img class="media-preview" src="' + url + '" />';
+    else if (['mp4','mkv','webm'].includes(ext)) body.innerHTML = '<video class="media-preview" src="' + url + '" controls autoplay></video>';
+    else body.innerHTML = '<audio src="' + url + '" controls autoplay></audio>';
+    showModal('previewModal');
+}
+
 function previewFile(f, ext) {
-    document.getElementById("previewTitle").textContent = f.name; var body = document.getElementById("previewBody"); body.innerHTML = "获取安全链接中..."; showModal("previewModal");
-    fetch("/api/share", { method: "POST", body: new URLSearchParams({path: f.path}) }).then(function(r) { return r.text(); }).then(function(token) {
+    document.getElementById("previewTitle").textContent = f.name;
+    var body = document.getElementById("previewBody");
+    body.innerHTML = "获取安全链接中...";
+    showModal("previewModal");
+    
+    // 先获取免密 Token
+    fetch("/api/share", { method: "POST", body: new URLSearchParams({path: f.path}) })
+    .then(function(r) { return r.text(); })
+    .then(function(token) {
         var url = "/share/" + token;
-        if (["jpg","jpeg","png","gif","webp"].includes(ext)) { body.innerHTML = '<img class="media-preview" src="' + escapeHtml(url) + '" />'; }
-        else if (["mp4","webm","mkv"].includes(ext)) { body.innerHTML = '<video class="media-preview" src="' + escapeHtml(url) + '" controls autoplay></video>'; }
-        else if (["mp3","wav"].includes(ext)) { body.innerHTML = '<audio src="' + escapeHtml(url) + '" controls autoplay style="width:100%"></audio>'; }
+        if (["jpg","jpeg","png","gif","webp"].includes(ext)) {
+            body.innerHTML = '<img class="media-preview" src="' + escapeHtml(url) + '" />';
+        } else if (["mp4","webm","mkv"].includes(ext)) {
+            body.innerHTML = '<video class="media-preview" src="' + escapeHtml(url) + '" controls autoplay></video>';
+        } else if (["mp3","wav"].includes(ext)) {
+            body.innerHTML = '<audio src="' + escapeHtml(url) + '" controls autoplay style="width:100%"></audio>';
+        }
     }).catch(function() { body.innerHTML = "加载失败"; });
 }
-function editFile(f, fullPath) { editingFile = fullPath; document.getElementById("editFileName").textContent = "编辑: " + f.name; document.getElementById("editContent").value = "加载中..."; showModal("editModal"); fetch("/api/preview?path=" + encodeURIComponent(fullPath)).then(r => r.text()).then(txt => { document.getElementById("editContent").value = txt; }); }
-function doSave() { var fd = new FormData(); fd.append("path", editingFile); fd.append("content", document.getElementById("editContent").value); fetch("/api/save", { method: "POST", body: fd }).then(r => { if (r.ok) { closeModal("editModal"); refresh(); toast("保存成功"); } else toast("保存失败"); }); }
-function unzipFile(fullPath) { var fd = new FormData(); fd.append("path", fullPath); fetch("/api/unzip", { method: "POST", body: fd }).then(r => { if (r.ok) { refresh(); toast("解压成功"); } else toast("解压失败"); }); }
-function shareFile(fullPath) { showSheet("shareModal"); window._sharePath = fullPath; }
-function doShare() { var pass = document.getElementById("sharePass").value; var expire = document.getElementById("shareExpire").value; var fd = new FormData(); fd.append("path", window._sharePath); if (pass) fd.append("pass", pass); fd.append("expire", expire); fetch("/api/share", { method: "POST", body: fd }).then(r => r.text()).then(token => { var link = location.origin + "/share/" + token + (pass ? "\n提取码: " + pass : ""); prompt("分享链接已生成:", link); closeSheet("shareModal"); }); }
-function renameFile(f, fullPath) { var newName = prompt("重命名为:", f.name); if (!newName || newName === f.name) return; var fd = new FormData(); fd.append("path", fullPath); fd.append("newName", newName); fetch("/api/rename", { method: "POST", body: fd }).then(r => { if (r.ok) refresh(); else toast("重命名失败"); }); }
-function delFile(fullPath) { if (!confirm("确定要删除吗？此操作不可恢复。")) return; var fd = new FormData(); fd.append("path", fullPath); fetch("/api/delete", { method: "POST", body: fd }).then(r => { if (r.ok) refresh(); else toast("删除失败"); }); }
-function uploadFiles(files) {
-    if (files.length === 0) return; var progress = document.getElementById("uploadProgress"); progress.style.width = "0%"; var file = files[0];
-    if (file.size < 2 * 1024 * 1024) {
-        var fd = new FormData(); fd.append("file", file, file.name); fd.append("path", currentPath);
-        var xhr = new XMLHttpRequest(); xhr.open("POST", "/api/upload", true); xhr.setRequestHeader("Authorization", localStorage.getItem("nas_auth") || "");
-        xhr.upload.onprogress = function(e) { if (e.lengthComputable) progress.style.width = ((e.loaded / e.total) * 100) + "%"; };
-        xhr.onload = function() { progress.style.width = "0%"; if (xhr.status === 200) { refresh(); toast("上传成功"); } else toast("上传失败"); document.getElementById("fileInput").value = ""; };
-        xhr.send(fd); return;
-    }
-    toast("正在计算文件特征码..."); var chunkSize = 2 * 1024 * 1024; var spark = new SparkMD5.ArrayBuffer(); var fileReader = new FileReader(); var chunkIndex = 0;
-    function loadNext() { var start = chunkIndex * chunkSize; var end = Math.min(start + chunkSize, file.size); fileReader.readAsArrayBuffer(file.slice(start, end)); }
-    fileReader.onload = function(e) { spark.append(e.target.result); chunkIndex++; if (chunkIndex * chunkSize < file.size) { loadNext(); } else { var hash = spark.end(); checkUpload(file, hash, chunkSize); } };
-    loadNext(); document.getElementById("fileInput").value = "";
+
+function editFile(f, fullPath) {
+    editingFile = fullPath;
+    document.getElementById("editFileName").textContent = "编辑: " + f.name;
+    document.getElementById("editContent").value = "加载中...";
+    showModal("editModal");
+    fetch("/api/preview?path=" + encodeURIComponent(fullPath))
+        .then(r => r.text())
+        .then(txt => {
+            document.getElementById("editContent").value = txt;
+        });
 }
-function checkUpload(file, hash, chunkSize) { fetch("/api/upload/check?hash=" + hash, { method: "POST" }).then(function(r) { return r.text(); }).then(function(res) { if (res.indexOf("SECONDS_UPLOAD") === 0) { toast("极速秒传成功！"); refresh(); } else { uploadChunks(file, hash, chunkSize); } }); }
-function uploadChunks(file, hash, chunkSize) {
-    var total = Math.ceil(file.size / chunkSize); var current = 0; var progress = document.getElementById("uploadProgress");
-    function sendChunk() {
-        var start = current * chunkSize; var end = Math.min(start + chunkSize, file.size); var chunk = file.slice(start, end);
-        var xhr = new XMLHttpRequest(); xhr.open("POST", "/api/upload/chunk?hash=" + hash + "&index=" + current + "&total=" + total + "&name=" + encodeURIComponent(file.name) + "&path=" + encodeURIComponent(currentPath), true);
+
+function doSave() {
+    var fd = new FormData();
+    fd.append("path", editingFile);
+    fd.append("content", document.getElementById("editContent").value);
+    fetch("/api/save", { method: "POST", body: fd })
+        .then(r => {
+            if (r.ok) { closeModal("editModal"); refresh(); toast("保存成功"); }
+            else toast("保存失败");
+        });
+}
+
+function unzipFile(fullPath) {
+    var fd = new FormData();
+    fd.append("path", fullPath);
+    fetch("/api/unzip", { method: "POST", body: fd })
+        .then(r => {
+            if (r.ok) { refresh(); toast("解压成功"); }
+            else toast("解压失败");
+        });
+}
+
+function shareFile(fullPath) {
+    showSheet("shareModal");
+    window._sharePath = fullPath;
+}
+
+function renameFile(f, fullPath) {
+    var newName = prompt("重命名为:", f.name);
+    if (!newName || newName === f.name) return;
+    var fd = new FormData();
+    fd.append("path", fullPath);
+    fd.append("newName", newName);
+    fetch("/api/rename", { method: "POST", body: fd })
+        .then(r => { if (r.ok) refresh(); else toast("重命名失败"); });
+}
+
+function delFile(fullPath) {
+    if (!confirm("确定要删除吗？此操作不可恢复。")) return;
+    var fd = new FormData();
+    fd.append("path", fullPath);
+    fetch("/api/delete", { method: "POST", body: fd })
+        .then(r => { if (r.ok) refresh(); else toast("删除失败"); });
+}
+
+// ================= 上传逻辑 =================
+document.getElementById("fileInput").onchange = function() {
+    if (this.files.length === 0) return;
+    var files = this.files;
+    var progress = document.getElementById("uploadProgress");
+    progress.style.width = "0%";
+    
+    var file = files[0]; // 简化为一次处理一个文件
+    if (file.size < 2 * 1024 * 1024) {
+        // 小文件直接走原有的表单上传
+        var fd = new FormData();
+        fd.append("file", file, file.name);
+        fd.append("path", currentPath);
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", "/api/upload", true);
         xhr.setRequestHeader("Authorization", localStorage.getItem("nas_auth") || "");
-        xhr.onload = function() { if (xhr.status === 200) { current++; progress.style.width = ((current / total) * 100) + "%"; if (current < total) { sendChunk(); } else { progress.style.width = "0%"; toast("分片上传完成"); refresh(); } } else { toast("分片 " + current + " 上传失败"); } };
+        xhr.upload.onprogress = function(e) {
+            if (e.lengthComputable) progress.style.width = ((e.loaded / e.total) * 100) + "%";
+        };
+        xhr.onload = function() {
+            progress.style.width = "0%";
+            if (xhr.status === 200) { refresh(); toast("上传成功"); WebhookManagerTest(); }
+            else toast("上传失败");
+            document.getElementById("fileInput").value = "";
+        };
+        xhr.send(fd);
+        return;
+    }
+    
+    toast("正在计算文件特征码...");
+    var chunkSize = 2 * 1024 * 1024; // 2MB 分片
+    var spark = new SparkMD5.ArrayBuffer();
+    var fileReader = new FileReader();
+    var chunkIndex = 0;
+    
+    // 计算整个文件的 MD5 (简易分块读取)
+    function loadNext() {
+        var start = chunkIndex * chunkSize;
+        var end = Math.min(start + chunkSize, file.size);
+        fileReader.readAsArrayBuffer(file.slice(start, end));
+    }
+    
+    fileReader.onload = function(e) {
+        spark.append(e.target.result);
+        chunkIndex++;
+        if (chunkIndex * chunkSize < file.size) {
+            loadNext();
+        } else {
+            var hash = spark.end();
+            checkUpload(file, hash, chunkSize);
+        }
+    };
+    loadNext();
+    document.getElementById("fileInput").value = "";
+};
+
+function checkUpload(file, hash, chunkSize) {
+    var fd = new FormData();
+    fetch("/api/upload/check?hash=" + hash, { method: "POST" }).then(function(r) { return r.text(); }).then(function(res) {
+        if (res.indexOf("SECONDS_UPLOAD") === 0) {
+            toast("极速秒传成功！");
+            refresh();
+            WebhookManagerTest();
+        } else {
+            uploadChunks(file, hash, chunkSize);
+        }
+    });
+}
+
+function uploadChunks(file, hash, chunkSize) {
+    var total = Math.ceil(file.size / chunkSize);
+    var current = 0;
+    var progress = document.getElementById("uploadProgress");
+    
+    function sendChunk() {
+        var start = current * chunkSize;
+        var end = Math.min(start + chunkSize, file.size);
+        var chunk = file.slice(start, end);
+        
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", "/api/upload/chunk?hash=" + hash + "&index=" + current + "&total=" + total + "&name=" + encodeURIComponent(file.name) + "&path=" + encodeURIComponent(currentPath), true);
+        xhr.setRequestHeader("Authorization", localStorage.getItem("nas_auth") || "");
+        xhr.onload = function() {
+            if (xhr.status === 200) {
+                current++;
+                var pct = (current / total) * 100;
+                progress.style.width = pct + "%";
+                if (current < total) {
+                    sendChunk();
+                } else {
+                    progress.style.width = "0%";
+                    toast("分片上传完成");
+                    refresh();
+                    WebhookManagerTest();
+                }
+            } else {
+                toast("分片 " + current + " 上传失败");
+            }
+        };
         xhr.send(chunk);
     }
     sendChunk();
 }
-function showMainMenu() { showSheet("mainMenu"); }
-function showMkdir() { closeSheet("mainMenu"); document.getElementById("newDirName").value = ""; showModal("mkdirModal"); }
-function doMkdir() { var name = document.getElementById("newDirName").value.trim(); if (!name) return; var fd = new FormData(); fd.append("path", currentPath); fd.append("name", name); fetch("/api/mkdir", { method: "POST", body: fd }).then(r => { if (r.ok) { closeModal("mkdirModal"); refresh(); toast("创建成功"); } else toast("创建失败"); }); }
-function showClipboard() { closeSheet("mainMenu"); showModal("clipModal"); fetch("/api/clipboard").then(r => r.text()).then(t => { document.getElementById("clipContent").value = t; }); }
-function saveClipboard() { var txt = document.getElementById("clipContent").value; fetch("/api/clipboard", { method: "POST", body: new URLSearchParams({ content: txt }) }).then(() => { toast("同步成功"); closeModal("clipModal"); }); }
-function checkOta() { closeSheet("mainMenu"); fetch("/api/ota").then(r => r.json()).then(data => { alert("当前版本: v4.4.0-lite.1\n最新版本: v" + data.version + "\n\n" + (data.version === "4.4.0-lite.1" ? "已是最新版本" : "有新版本可用！")); }); }
-function testWebhook() { fetch('/api/webhook/test', {method:'POST'}).then(function(){ toast('已发送，请检查设备'); }); }
-function showSettings() {
-    closeSheet("mainMenu"); showModal("settingsModal");
-    fetch("/api/settings").then(r => r.json()).then(s => {
-        document.getElementById("setAlias").value = s.alias || ""; document.getElementById("setWebPort").value = s.webPort; document.getElementById("setDavPort").value = s.davPort; document.getElementById("setFtpPort").value = s.ftpPort;
-        document.getElementById("setWebDav").checked = s.webdav; document.getElementById("setFtp").checked = s.ftp; document.getElementById("setStream").checked = s.stream; document.getElementById("setClipboard").checked = s.clipboard; document.getElementById("setLowPower").checked = s.lowPower;
-        document.getElementById("setFail2Ban").checked = s.fail2ban; document.getElementById("setAuditEnabled").checked = s.auditEnabled; document.getElementById("setIpWhitelistEnabled").checked = s.ipWhitelistEnabled; document.getElementById("setIpWhitelist").value = s.ipWhitelist || ""; document.getElementById("setPinRequired").checked = s.pinRequired;
-        document.getElementById("setPassword").value = ""; document.getElementById("setWebhook").value = s.webhookUrl || ""; document.getElementById("setChatId").value = s.webhookChatId || "";
-    }).catch(() => toast("获取设置失败"));
+
+function WebhookManagerTest() {
+    // 挂载一个空函数，实际 Webhook 在服务端触发
 }
+
+// ================= 其他功能 =================
+function showMainMenu() { showSheet("mainMenu"); }
+
+function showMkdir() {
+    closeSheet("mainMenu");
+    document.getElementById("newDirName").value = "";
+    showModal("mkdirModal");
+}
+
+function doMkdir() {
+    var name = document.getElementById("newDirName").value.trim();
+    if (!name) return;
+    var fd = new FormData();
+    fd.append("path", currentPath);
+    fd.append("name", name);
+    fetch("/api/mkdir", { method: "POST", body: fd })
+        .then(r => {
+            if (r.ok) { closeModal("mkdirModal"); refresh(); toast("创建成功"); }
+            else toast("创建失败");
+        });
+}
+
+function showClipboard() {
+    closeSheet("mainMenu");
+    showModal("clipModal");
+    fetch("/api/clipboard").then(r => r.text()).then(t => {
+        document.getElementById("clipContent").value = t;
+    });
+}
+
+function saveClipboard() {
+    var txt = document.getElementById("clipContent").value;
+    fetch("/api/clipboard", { method: "POST", body: new URLSearchParams({ content: txt }) })
+        .then(() => { toast("同步成功"); closeModal("clipModal"); });
+}
+
+function showTerminal() {
+    closeSheet("mainMenu");
+    showModal("termModal");
+    document.getElementById("termInput").focus();
+}
+
+function execShell() {
+    var pin = "";
+    if (window._pinRequired) {
+        pin = prompt("请输入紧急安全码执行 Root 命令:");
+        if (pin === null) return;
+    }
+
+    var cmd = document.getElementById("termInput").value.trim();
+    if (!cmd) return;
+    var out = document.getElementById("termOutput");
+    out.innerHTML += "\n$ " + escapeHtml(cmd) + "\n";
+    document.getElementById("termInput").value = "";
+    
+    fetch("/api/shell", { method: "POST", body: new URLSearchParams({ cmd: cmd, pin: pin }) })
+        .then(r => r.text())
+        .then(t => {
+            out.innerHTML += escapeHtml(t) + "\n";
+            out.scrollTop = out.scrollHeight;
+        }).catch(e => {
+            out.innerHTML += "Error: " + e + "\n";
+        });
+}
+
+
+function testWebhook() {
+  fetch('/api/webhook/test', {method:'POST'}).then(function(){ toast('已发送，请检查设备'); });
+}
+
+
+function showPorts() {
+    closeSheet("mainMenu");
+    showModal("portsModal");
+    document.getElementById("portsLatency").textContent = "扫描中...";
+    
+    fetch("/api/ports").then(function(r) { return r.json(); }).then(function(data) {
+        var list = document.getElementById("portList");
+        list.innerHTML = "";
+        var maxPing = 0;
+        
+        for (var i = 0; i < data.length; i++) {
+            var d = data[i];
+            if (d.latency > maxPing) maxPing = d.latency;
+            
+            var dotClass = d.status ? "online" : "offline";
+            var item = document.createElement("div");
+            item.className = "port-pill";
+            item.innerHTML = '<div class="port-dot ' + dotClass + '"></div>' +
+                             '<div class="port-name">' + d.name + '</div>' +
+                             '<div class="port-port">' + (d.status ? ":" + d.port : "未监听") + '</div>';
+            list.appendChild(item);
+        }
+        
+        document.getElementById("portsLatency").textContent = "最大延迟: " + maxPing + "ms";
+    }).catch(function(e){
+        document.getElementById("portsLatency").textContent = "请求失败";
+    });
+}
+
+
+function showSettings() {
+    closeSheet("mainMenu");
+    showModal("settingsModal");
+    // 🔥 修复：改回读取 /api/settings 获取完整数据
+    fetch("/api/settings").then(r=>r.json()).then(s=>{
+        document.getElementById("setAlias").value = s.alias || "";
+        document.getElementById("setWebPort").value = s.webPort;
+        document.getElementById("setDavPort").value = s.davPort;
+        document.getElementById("setFtpPort").value = s.ftpPort;
+        document.getElementById("setWebDav").checked = s.webdav;
+        document.getElementById("setFtp").checked = s.ftp;
+        document.getElementById("setDlna").checked = s.dlna;
+        document.getElementById("setStream").checked = s.stream;
+        document.getElementById("setClipboard").checked = s.clipboard;
+        document.getElementById("setGlobal").checked = s.globalMode;
+        document.getElementById("setLowPower").checked = s.lowPower;
+        
+        // 安全控制台
+        document.getElementById("setFail2Ban").checked = s.fail2ban !== false;
+        document.getElementById("setCcLimit").checked = s.ccLimitEnabled !== false;
+        document.getElementById("setCaptcha").checked = s.captchaEnabled !== false;
+        document.getElementById("setLanOnly").checked = s.lanOnlyStrict !== false;
+        document.getElementById("setHideHeader").checked = s.hideHeader !== false;
+        document.getElementById("setAuditEnabled").checked = s.auditEnabled !== false;
+        document.getElementById("setPinRequired").checked = s.pinRequired !== false;
+        document.getElementById("setIpWhitelistEnabled").checked = s.ipWhitelistEnabled;
+        document.getElementById("setIpWhitelist").value = s.ipWhitelist || "";
+        document.getElementById("setSecretPath").value = s.secretPath || "";
+        document.getElementById("setSessionTimeout").value = s.sessionTimeout || 30;
+        
+        document.getElementById("setWebhook").value = s.webhookUrl || "";
+        document.getElementById("setWebhookTemplate").value = s.webhookTemplate || "";
+        document.getElementById("setChatId").value = s.webhookChatId || "";
+        document.getElementById("setPassword").value = "";
+        
+        localStorage.setItem("nas_secret", s.secretPath || "");
+        
+        fetch("/api/2fa").then(r=>r.json()).then(d=>{
+            document.getElementById("set2FA").checked = d.enabled;
+            if(d.enabled) {
+                document.getElementById("2faSecretBox").style.display = "block";
+                document.getElementById("2faSecretText").textContent = d.secret;
+            }
+        });
+    });
+}
+
+
 function saveSettings() {
     var ipEnabled = document.getElementById("setIpWhitelistEnabled").checked;
-    if (ipEnabled) { if (!confirm("⚠️ 你正在开启 IP 白名单！\n请确保你当前的 IP 已经在白名单列表中，否则你将无法再访问 NAS！\n\n当前白名单: " + document.getElementById("setIpWhitelist").value + "\n\n确定要保存吗？")) return; }
-    var pin = ""; if (window._pinRequired) { pin = prompt("请输入紧急安全码:"); if (pin === null) return; }
-    var fd = new FormData(); fd.append("alias", document.getElementById("setAlias").value); fd.append("webPort", document.getElementById("setWebPort").value); fd.append("davPort", document.getElementById("setDavPort").value); fd.append("ftpPort", document.getElementById("setFtpPort").value);
-    fd.append("webdav", document.getElementById("setWebDav").checked); fd.append("ftp", document.getElementById("setFtp").checked); fd.append("stream", document.getElementById("setStream").checked); fd.append("clipboard", document.getElementById("setClipboard").checked); fd.append("lowPower", document.getElementById("setLowPower").checked);
-    fd.append("fail2ban", document.getElementById("setFail2Ban").checked); fd.append("auditEnabled", document.getElementById("setAuditEnabled").checked); fd.append("ipWhitelistEnabled", document.getElementById("setIpWhitelistEnabled").checked); fd.append("ipWhitelist", document.getElementById("setIpWhitelist").value); fd.append("pinRequired", document.getElementById("setPinRequired").checked);
-    fd.append("webhookUrl", document.getElementById("setWebhook").value); fd.append("webhookChatId", document.getElementById("setChatId").value); fd.append("pin", pin);
-    fetch("/api/settings", { method: "POST", body: fd }).then(r => { if (r.ok) { var pwd = document.getElementById("setPassword").value; if (pwd) { fetch("/api/password", { method: "POST", body: new URLSearchParams({password: pwd}) }).then(() => finishSave()); } else { finishSave(); } } else { toast("保存失败"); } });
+    if (ipEnabled) {
+        if (!confirm("⚠️ 你正在开启 IP 白名单！\n请确保你当前的 IP 已经在白名单列表中，否则你将无法再访问 NAS！\n\n当前白名单: " + document.getElementById("setIpWhitelist").value + "\n\n确定要保存吗？")) {
+            return;
+        }
+    }
+    var pin = "";
+    if (window._pinRequired) {
+        pin = prompt("请输入紧急安全码:");
+        if (pin === null) return;
+    }
+
+    var fd = new FormData();
+    fd.append("alias", document.getElementById("setAlias").value);
+    fd.append("webPort", document.getElementById("setWebPort").value);
+    fd.append("davPort", document.getElementById("setDavPort").value);
+    fd.append("ftpPort", document.getElementById("setFtpPort").value);
+    fd.append("webdav", document.getElementById("setWebDav").checked);
+    fd.append("ftp", document.getElementById("setFtp").checked);
+    fd.append("dlna", document.getElementById("setDlna").checked);
+    fd.append("stream", document.getElementById("setStream").checked);
+    fd.append("clipboard", document.getElementById("setClipboard").checked);
+    fd.append("globalMode", document.getElementById("setGlobal").checked);
+    fd.append("lanOnlyStrict", document.getElementById("setLanOnly").checked);
+    fd.append("captchaEnabled", document.getElementById("setCaptcha").checked);
+    fd.append("sessionTimeout", document.getElementById("setSessionTimeout").value);
+    fd.append("hideHeader", document.getElementById("setHideHeader").checked);
+    fd.append("ccLimitEnabled", document.getElementById("setCcLimit").checked);
+    fd.append("secretPath", document.getElementById("setSecretPath").value);
+    fd.append("lowPower", document.getElementById("setLowPower").checked);
+    fd.append("fail2ban", document.getElementById("setFail2Ban").checked);
+    fd.append("auditEnabled", document.getElementById("setAuditEnabled").checked);
+    fd.append("ipWhitelistEnabled", document.getElementById("setIpWhitelistEnabled").checked);
+    fd.append("ipWhitelist", document.getElementById("setIpWhitelist").value);
+    fd.append("pinRequired", document.getElementById("setPinRequired").checked);
+    fd.append("webhookUrl", document.getElementById("setWebhook").value);
+    fd.append("webhookTemplate", document.getElementById("setWebhookTemplate").value);
+    fd.append("webhookChatId", document.getElementById("setChatId").value);
+    fd.append("pin", pin);
+    
+    fetch("/api/settings", { method: "POST", body: fd })
+        .then(r => {
+            if (r.ok) {
+                var pwd = document.getElementById("setPassword").value;
+                if (pwd) {
+                    fetch("/api/password", { method: "POST", body: new URLSearchParams({password: pwd}) })
+                        .then(() => finishSave());
+                } else {
+                    finishSave();
+                }
+            } else {
+                toast("保存失败");
+            }
+        });
 }
-function finishSave() { toast("保存成功，服务重启中..."); closeModal("settingsModal"); setTimeout(() => { location.reload(); }, 2000); }
-function showAbout() { closeSheet("mainMenu"); showModal("aboutModal"); }
+
+function updatePin() {
+    var oldPin = prompt("请输入当前安全码:");
+    if (!oldPin) return;
+    var newPin = prompt("请输入新的安全码 (至少4位):");
+    if (!newPin) return;
+    fetch("/api/security/pin", {method:"POST", body: new URLSearchParams({oldPin: oldPin, newPin: newPin})}).then(function(r){
+        if (r.ok) toast("安全码已更新");
+        else toast("更新失败，原安全码错误");
+    });
+}
+
+function showSessions() {
+    fetch("/api/security/sessions").then(function(r){ return r.json(); }).then(function(data){
+        var msg = "在线设备:\n";
+        data.forEach(function(s){ msg += s.ip + " - " + s.user + " (" + s.lastActive + ")\n"; });
+        alert(data.length === 0 ? "暂无在线设备" : msg);
+    });
+}
+
+function showAudit() {
+    fetch("/api/security/audit").then(function(r){ return r.text(); }).then(function(text){
+        var body = document.getElementById("previewBody");
+        document.getElementById("previewTitle").textContent = "安全审计日志";
+        body.innerHTML = '<pre style="text-align:left; max-height:60vh; overflow:auto; font-size:12px; background:var(--surface-variant); padding:12px; border-radius:8px;">' + escapeHtml(text) + '</pre>';
+        showModal("previewModal");
+    });
+}
+
+
+function triggerWipe() {
+    if (!confirm("⚠️ 第一次确认：你即将销毁所有文件！确定要继续吗？")) return;
+    if (!confirm("☢️ 第二次确认：此操作绝对不可逆，手机可能会变砖！你确定吗？")) return;
+    
+    var pwd = prompt("请输入管理员密码以启动自毁程序：");
+    if (!pwd) return;
+    
+    var rootMode = confirm("是否连同系统底层一起摧毁？\n\n[确定] = 包含系统 (需Root)\n[取消] = 仅删除文件");
+    
+    var btn = document.getElementById("btnWipe");
+    btn.innerText = "正在执行毁灭...";
+    btn.disabled = true;
+    
+    fetch("/api/system/wipe", {
+        method: "POST",
+        body: new URLSearchParams({ password: pwd, root: rootMode ? "true" : "false" })
+    }).then(function(r) {
+        if (r.ok) {
+            document.body.innerHTML = "<div style='display:flex; justify-content:center; align-items:center; height:100vh; background:#000; color:#f00; font-size:24px; font-family:monospace; text-align:center;'>☢️ 系统已自毁。<br>连接已断开。</div>";
+        } else {
+            alert("自毁失败：" + r.status + "，请检查密码是否正确。");
+            btn.innerText = "执行自毁";
+            btn.disabled = false;
+        }
+    }).catch(function() {
+        document.body.innerHTML = "<div style='display:flex; justify-content:center; align-items:center; height:100vh; background:#000; color:#f00; font-size:24px; font-family:monospace; text-align:center;'>☢️ 连接已强制断开。<br>设备正在销毁中...</div>";
+    });
+}
+
+function finishSave() {
+    toast("保存成功，服务重启中...");
+    closeModal("settingsModal");
+    setTimeout(() => { location.reload(); }, 2000);
+}
+
+
+var wsRemote = null;
+var isRemoteDown = false;
+var lastX = 0, lastY = 0;
+
+
+function switchRemoteMode() {
+    if (!wsRemote) return;
+    if (window.remoteMode === "h264") {
+        // 切到截图模式
+        window.remoteMode = "screenshot";
+        wsRemote.send("start_screenshot");
+        document.getElementById("btnSwitchMode").textContent = "切换到 H264";
+        document.getElementById("remoteVideo").style.display = "none";
+        document.getElementById("remoteScreenshot").style.display = "block";
+        document.getElementById("remoteStatus").textContent = "等待截图流...";
+    } else {
+        // 切到 H264 模式
+        window.remoteMode = "h264";
+        wsRemote.send("stop");
+        document.getElementById("btnSwitchMode").textContent = "切换到截图流";
+        document.getElementById("remoteScreenshot").style.display = "none";
+        document.getElementById("remoteVideo").style.display = "block";
+        document.getElementById("remoteStatus").textContent = "等待 H264 流 (需服务端点录屏授权)";
+    }
+}
+
+
+function showPhotos() {
+    closeSheet("mainMenu");
+    document.getElementById("pathTitle").textContent = "时光相册 (按时间排序)";
+    fetch("/api/photos").then(r => r.json()).then(data => {
+        var list = document.getElementById("list");
+        list.innerHTML = "";
+        if(!data || data.length === 0) { list.innerHTML = "<p>空空如也</p>"; return; }
+        
+        var grid = document.createElement("div");
+        grid.style.display = "grid";
+        grid.style.gridTemplateColumns = "repeat(auto-fill, minmax(100px, 1fr))";
+        grid.style.gap = "4px";
+        grid.style.padding = "10px";
+
+        data.forEach(f => {
+            var img = document.createElement("img");
+            img.src = "/api/thumb?path=" + encodeURIComponent(f.path);
+            img.style.width = "100%";
+            img.style.aspectRatio = "1";
+            img.style.objectFit = "cover";
+            img.style.borderRadius = "8px";
+            img.onclick = function() { fetch("/api/share", {method:"POST", body:new URLSearchParams({path:f.path})}).then(function(r){return r.text();}).then(function(t){ openPlayer(location.origin + "/share/" + t, "jpg"); }); };
+            grid.appendChild(img);
+        });
+        list.appendChild(grid);
+    });
+}
+
+function checkOta() {
+    closeSheet("mainMenu");
+    fetch("/api/ota").then(r => r.json()).then(data => {
+        alert("当前版本: v4.4.1\n最新版本: v" + data.version + "\n\n" + (data.version === "4.4.1" ? "已是最新版本" : "有新版本可用！"));
+    });
+}
+
+
+// --- 硬件监控 ---
+function showMonitor() {
+    closeSheet("mainMenu"); showModal("monitorModal");
+    updateMonitor();
+}
+function updateMonitor() {
+    if(!document.getElementById("monitorModal").classList.contains("show")) return;
+    fetch("/api/monitor").then(function(r) { return r.json(); }).then(function(d) {
+        document.getElementById("cpuText").textContent = d.cpu + "%";
+        document.getElementById("barCpu").style.width = d.cpu + "%";
+        document.getElementById("memText").textContent = d.memUsed + " / " + d.memTotal + " MB";
+        var memPct = Math.round((d.memUsed / d.memTotal) * 100) || 0;
+        document.getElementById("barMem").style.width = memPct + "%";
+        document.getElementById("storeText").textContent = d.storageUsed + " / " + d.storageTotal + " GB";
+        var storePct = Math.round((d.storageUsed / d.storageTotal) * 100) || 0;
+        document.getElementById("barStore").style.width = storePct + "%";
+        document.getElementById("battText").textContent = d.battery + "%";
+        document.getElementById("barBatt").style.width = (d.battery >= 0 ? d.battery : 0) + "%";
+    }).catch(function(e){ console.log(e); });
+    setTimeout(updateMonitor, 3000);
+}
+
+function showUsers() {
+    closeSheet("mainMenu"); showModal("usersModal");
+    fetch("/api/users").then(function(r) { return r.json(); }).then(function(users) {
+        var tbody = document.getElementById("userList");
+        tbody.innerHTML = "";
+        users.forEach(function(u) {
+            var tr = document.createElement("tr");
+            tr.innerHTML = "<td>" + u.user + "</td><td>" + (u.role === 1 ? "管理员" : "普通") + "</td><td>" + u.root + "</td>";
+            tbody.appendChild(tr);
+        });
+    }).catch(function(e){ console.log(e); });
+}
+function addUser() {
+    var fd = new FormData();
+    fd.append("u", document.getElementById("newUser").value);
+    fd.append("p", document.getElementById("newPass").value);
+    fd.append("r", "/Users/" + document.getElementById("newUser").value);
+    fetch("/api/users", {method:"POST", body:fd}).then(function() { showUsers(); });
+}
+
+function showMediaWall() {
+    closeSheet("mainMenu");
+    document.getElementById("pathTitle").textContent = "影视海报墙";
+    var list = document.getElementById("list");
+    list.innerHTML = '<div class="empty-state">正在扫描并获取元数据，请稍候...</div>';
+    
+    fetch("/api/media/wall").then(function(r) { return r.json(); }).then(function(data) {
+        list.innerHTML = "";
+        if (!data || data.length === 0) {
+            list.innerHTML = '<div class="empty-state">没有找到视频文件</div>';
+            return;
+        }
+        var grid = document.createElement("div");
+        grid.style.display = "grid";
+        grid.style.gridTemplateColumns = "repeat(auto-fill, minmax(130px, 1fr))";
+        grid.style.gap = "16px";
+        grid.style.padding = "16px";
+        
+        data.forEach(function(m) {
+            var div = document.createElement("div");
+            div.className = "media-card";
+            div.style.cursor = "pointer";
+            
+            var img = document.createElement("img");
+            if (m.poster) {
+                img.src = m.poster;
+            } else {
+                // 没海报时的纯色占位图
+                img.src = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iNDUwIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjQ1MCIgZmlsbD0iIzQ5NDU0RiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmaWxsPSIjRTZFMEXSIiBmb250LXNpemU9IjIwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7mmoLml6DmtbfmiqU8L3RleHQ+PC9zdmc+";
+            }
+            img.style.width = "100%";
+            img.style.aspectRatio = "2/3";
+            img.style.objectFit = "cover";
+            img.style.borderRadius = "8px";
+            
+            var title = document.createElement("div");
+            title.textContent = m.title;
+            title.style.marginTop = "8px";
+            title.style.fontSize = "14px";
+            title.style.fontWeight = "bold";
+            title.style.whiteSpace = "nowrap";
+            title.style.overflow = "hidden";
+            title.style.textOverflow = "ellipsis";
+            
+            var rating = document.createElement("div");
+            rating.innerHTML = "⭐ " + parseFloat(m.rating || 0).toFixed(1);
+            rating.style.fontSize = "12px";
+            rating.style.color = "#e5a00d";
+            
+            div.appendChild(img);
+            div.appendChild(title);
+            div.appendChild(rating);
+            div.onclick = function() { previewFile({name: m.name, path: m.path}, m.name.split(".").pop().toLowerCase()); };
+            grid.appendChild(div);
+        });
+        list.appendChild(grid);
+    }).catch(function() {
+        list.innerHTML = '<div class="empty-state">加载失败，请检查服务端网络</div>';
+    });
+}
+
+function showRemote() {
+    closeSheet("mainMenu");
+    showModal("remoteModal");
+    document.getElementById("remoteStatus").textContent = "连接中...";
+    
+    if (wsRemote == null) {
+        var wsToken = (localStorage.getItem("nas_auth") || "").replace("Basic ", "");
+        var wsProto = location.protocol === "https:" ? "wss://" : "ws://";
+        wsRemote = new WebSocket(wsProto + location.hostname + ":8082/?token=" + encodeURIComponent(wsToken));
+        wsRemote.binaryType = "arraybuffer";
+        
+        window.jmuxer = new JMuxer({
+            node: 'remoteVideo',
+            mode: 'video',
+            flushingTime: 0,
+            fps: 30,
+            debug: false
+        });
+        
+        window.remoteMode = "h264"; // 默认 H264
+        
+        wsRemote.onopen = function() {
+            document.getElementById("remoteStatus").textContent = "已连接 (H264 视频流)";
+        };
+        
+        wsRemote.onmessage = function(event) {
+            if (window.remoteMode === "h264") {
+                // 播放 H264
+                document.getElementById("remoteStatus").textContent = "正在推流 (H264)";
+                window.jmuxer.feed({ video: new Uint8Array(event.data) });
+            } else {
+                // 播放 JPEG 截图
+                document.getElementById("remoteStatus").textContent = "正在推流 (Root 截图)";
+                var blob = new Blob([event.data], {type: 'image/jpeg'});
+                var url = URL.createObjectURL(blob);
+                var img = document.getElementById("remoteScreenshot");
+                img.onload = function() { URL.revokeObjectURL(url); };
+                img.src = url;
+                img.style.display = "block";
+                document.getElementById("remoteVideo").style.display = "none";
+            }
+        };
+        
+        wsRemote.onclose = function() {
+            document.getElementById("remoteStatus").textContent = "已断开";
+            if (window.jmuxer) window.jmuxer.destroy();
+        };
+    }
+    
+    var video = document.getElementById("remoteVideo");
+    
+    // 触控监听
+    video.onmousedown = function(e) {
+        isRemoteDown = true;
+        var rect = video.getBoundingClientRect();
+        lastX = Math.round((e.clientX - rect.left) / rect.width * 1080);
+        lastY = Math.round((e.clientY - rect.top) / rect.height * 1920);
+    };
+    
+    video.onmouseup = function(e) {
+        if (!isRemoteDown) return;
+        isRemoteDown = false;
+        var rect = video.getBoundingClientRect();
+        var x = Math.round((e.clientX - rect.left) / rect.width * 1080);
+        var y = Math.round((e.clientY - rect.top) / rect.height * 1920);
+        
+        if (wsRemote && wsRemote.readyState === WebSocket.OPEN) {
+            if (Math.abs(x - lastX) > 50 || Math.abs(y - lastY) > 50) {
+                // 滑动
+                wsRemote.send(`swipe,${lastX},${lastY},${x},${y}`);
+            } else {
+                // 点击
+                wsRemote.send(`tap,${x},${y}`);
+            }
+        }
+    };
+}
+
+function stopRemote() {
+    if (wsRemote) {
+        wsRemote.close();
+        wsRemote = null;
+    }
+    document.getElementById("remoteVideo").src = "";
+}
+
+function showAbout() {
+    closeSheet("mainMenu");
+    showModal("aboutModal");
+}
+
+
+
+
+
+
+
+// 补全 4.5.0 缺失的核弹级功能
+if (typeof toggle2FA === 'undefined') {
+    function toggle2FA(enabled) {
+        fetch("/api/2fa").then(function(r){ return r.json(); }).then(function(d){
+            if (enabled && !d.enabled) {
+                if (!confirm("请确保已安装 Authenticator，密钥为: " + d.secret + "\n\n确定开启吗？")) {
+                    document.getElementById("set2FA").checked = false; return;
+                }
+                var testCode = prompt("请输入当前 6 位验证码（用于确认绑定成功）：");
+                if (!testCode || !/^\d{6}$/.test(testCode)) {
+                    document.getElementById("set2FA").checked = false;
+                    toast("验证码无效，已取消开启");
+                    return;
+                }
+                localStorage.setItem("nas_2fa", testCode);
+            }
+            fetch("/api/2fa", {method:"POST", body:new URLSearchParams({enable: enabled, secret: d.secret})}).then(function(r){
+                if (!r.ok) { toast("2FA 设置失败，请检查验证码"); document.getElementById("set2FA").checked = !enabled; return; }
+                document.getElementById("2faSecretBox").style.display = enabled ? "block" : "none";
+                document.getElementById("2faSecretText").textContent = d.secret;
+                toast(enabled ? "2FA 已开启" : "2FA 已关闭");
+                if (!enabled) localStorage.removeItem("nas_2fa");
+            });
+        });
+    }
+}
+if (typeof updatePin === 'undefined') {
+    function updatePin() {
+        var oldPin = prompt("请输入当前安全码:");
+        if (!oldPin) return;
+        var newPin = prompt("请输入新的安全码 (至少4位):");
+        if (!newPin) return;
+        fetch("/api/security/pin", {method:"POST", body:new URLSearchParams({oldPin: oldPin, newPin: newPin})}).then(function(r){
+            if (r.ok) toast("安全码已更新");
+            else toast("更新失败，原安全码错误");
+        });
+    }
+}
+if (typeof showSessions === 'undefined') {
+    function showSessions() {
+        fetch("/api/security/sessions").then(function(r){ return r.json(); }).then(function(data){
+            var msg = "在线设备:\n";
+            data.forEach(function(s){ msg += s.ip + " - " + s.user + " (" + s.lastActive + ")\n"; });
+            alert(data.length === 0 ? "暂无在线设备" : msg);
+        });
+    }
+}
+if (typeof triggerWipe === 'undefined') {
+    function triggerWipe() {
+        if (!confirm("⚠️ 第一次确认：你即将销毁所有文件！确定要继续吗？")) return;
+        if (!confirm("☢️ 第二次确认：此操作绝对不可逆，手机可能会变砖！你确定吗？")) return;
+        var pwd = prompt("请输入管理员密码以启动自毁程序：");
+        if (!pwd) return;
+        var rootMode = confirm("是否连同系统底层一起摧毁？\n\n[确定] = 包含系统 (需Root)\n[取消] = 仅删除文件");
+        var btn = document.getElementById("btnWipe");
+        btn.innerText = "正在执行毁灭..."; btn.disabled = true;
+        fetch("/api/system/wipe", {method: "POST", body: new URLSearchParams({ password: pwd, root: rootMode ? "true" : "false" })})
+        .then(function(r) {
+            if (r.ok) document.body.innerHTML = "<div style='display:flex; justify-content:center; align-items:center; height:100vh; background:#000; color:#f00; font-size:24px;'>☢️ 系统已自毁。</div>";
+            else {
+                alert("自毁失败：" + r.status);
+                btn.innerText = "执行自毁"; btn.disabled = false;
+            }
+        }).catch(function() {
+            document.body.innerHTML = "<div style='display:flex; justify-content:center; align-items:center; height:100vh; background:#000; color:#f00; font-size:24px;'>☢️ 连接已强制断开。设备正在销毁中...</div>";
+        });
+    }
+}
+
+// 启动
 refresh();
 </script>
 </body>

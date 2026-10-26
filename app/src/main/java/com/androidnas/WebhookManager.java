@@ -13,7 +13,10 @@ public class WebhookManager {
         new Thread(new Runnable() {
             @Override public void run() {
                 try {
-                    String payload = "{\"msgtype\":\"text\",\"text\":{\"content\":\"【NAS通知】测试消息\"}}";
+                    String payload = SettingsManager.getWebhookTemplate();
+                    if (payload == null || payload.isEmpty()) {
+                        payload = "{\"msgtype\":\"text\",\"text\":{\"content\":\"【NAS通知】测试消息\"}}";
+                    }
                     URL u = new URL(url);
                     HttpURLConnection conn = (HttpURLConnection) u.openConnection();
                     conn.setRequestMethod("POST");

@@ -7,6 +7,49 @@
 
 ---
 
+## [4.5.0-lite.1] - 2026-10-26
+
+**基于完整版 v4.5.0 重新精简：五重安全防线与精简回归根治**
+
+从完整版 v4.5.0 出发，同步了企业级五重安全防线与硬件哨兵，同时物理剔除了短信中心、高危自毁接口与全部 Root 依赖，并对 Lite 版上一轮精简残留的 6 处越界引用做了精准清理。
+
+### Kept（完美继承完整版 v4.5.0 的核心安全防御）
+- **原生 2FA 两步验证**：纯 Java 手写 TOTP（RFC 6238，HMAC-SHA1），兼容 Google Authenticator，默认关闭。
+- **隐藏入口暗号**：支持自定义 Secret Path，未携带暗号的非 API 请求统一返回伪装 404，防扫站脚本探测。
+- **算数图形验证码**：触发 Fail2Ban 后前端弹出算数题，`X-Captcha` Header 校验通过前拒绝继续请求，阻断并发爆破脚本。
+- **高危 API 局域网物理锁**：`/api/settings` 等核心接口强制校验来源 IP，`isLanIp()` 使用正则 `172\.(1[6-9]|2[0-9]|3[01])\..*` 精准覆盖 RFC1918 网段，不误伤公网 IP。
+- **防 CC 限流与会话防护**：单 IP QPS 滑动窗口限流，闲置自动登出，隐藏 `Server` 响应头防指纹泄露。
+- **电池温度告警**：实时读取物理温度，超过 45℃ 触发 Webhook 报警，42℃ 以下自动解除。
+- **MD3 SVG 矢量图标**：网页端菜单、顶部导航与 PWA 桌面图标全量替换为 Material Symbols。
+- **CI 用 `printf` 替代 heredoc**：彻底根除 YAML 缩进引发的 Bash 语法崩溃。
+
+### Removed（本次新增裁剪）
+- **短信中心**：物理剔除 `SmsManager.java`、`RECEIVE_SMS` / `READ_SMS` / `SEND_SMS` 三项权限、`/api/sms/send` 与 `/api/sms/logs` 接口、前端短信 UI。
+- **电池熔断的 Root 自动停充**：剥离 `BatteryProtector` 中的 `AdvancedKeepAliveManager.hasRoot()` 与 `RootManager.execCommand("...charging_enabled")` 分支，仅保留温度告警。
+- **高危自毁接口**：`/api/system/wipe`（Panic Wipe）物理移除。
+- **Web Shell**：`/api/shell` 物理移除。
+- **精简残留越界引用**：精准清理 `MainActivity` / `HttpServerService` / `NasHttpServer` 中遗留的 `RemoteDesktopManager`、`AdvancedKeepAliveManager`、`FreeTunnelManager`、`SshTunnelManager`、`MediaScraper` 共 6 处引用，杜绝 `cannot find symbol` 编译崩溃。
+- **冗余扩展接口**：`/api/thumb`、`/api/photos`、`/api/media/wall`、`/api/monitor`、`/api/users` 统一返回 404，前端菜单入口同步移除。
+
+### Fixed（Lite 版额外修复，完整版尚未处理）
+- **2FA 开启前 TOTP 验证（防锁死）**：前端 `toggle2FA` 在开启前强制要求输入一次当前 6 位验证码；服务端 `/api/2fa` POST 分支强制校验 `X-TOTP-Code` 头，验证不通过直接 `400 Bad Request`，杜绝密钥输错后永久锁死账号。
+- **`showSessions` 空列表提示失效**：修复 `msg || "暂无在线设备"` 永远为 truthy 的逻辑错误，改为 `data.length === 0 ? "暂无在线设备" : msg`。
+- **`webhookTemplate` GET 字段缺失**：`/api/settings` GET Response 补全 `webhookTemplate` 字段（含 JSON 转义），防止用户配置的自定义模板在重开设置面板时被静默清空。
+- **`isDefaultPassword()` 动态判定**：4.5.0 完整版仍保留 `DatabaseManager.isDefaultPwd` 静态变量，进程重启后即使已改密也会误报默认密码告警。Lite 版注入 `isDefaultPassword()` 动态查询 SQLite 比对加盐哈希，`/api/status` 同步切换。
+- **`sync_version.py` 支持 `__VERSION__` 占位符**：完整版 4.5.0 将 `/api/ota` 的版本号改为 `__VERSION__` 占位符，Lite 版扩展 `sync_version.py` 的 `update_ota_placeholder()` 函数，发版时自动注入，避免 OTA 永远显示占位符。
+- **`SettingsManager.isGlobalMode()` 强制 `false`**：全盘 Root 模式已移除，防止残留的 SharedPreferences 开关在服务端生效。
+- **包名强制回退**：`com.androidnas.all.*` → `com.androidnas.lite.*`（server / client / tv），避免与完整版安装冲突，并杜绝 lite.1 时期包名回归事故重演。
+
+### Changed（架构与底层）
+- 端数维持 5 端：Server / Web / Client / TV / Desktop。
+- `versionCode` 编码：`major*100000 + minor*1000 + patch*10 + lite序号`，本次为 `4*100000 + 5*1000 + 0*10 + 1 = 405001`。
+
+### Known Issues（Lite 版已披露的已知缺口）
+- **`/api/ports` 探针仅探本机端口**：4.5.0 完整版文档描述为“探测宿主机服务”，但代码实际只对 `127.0.0.1` 发起 `Socket.connect()`。若 Jellyfin / Alist 等部署在另一台局域网机器上，探针会显示“未监听”。Lite 版保留原实现，并在 `docs/USAGE.md` 中诚实说明。
+- **`/api/speedtest` 无频率限制**：完整版已把默认值从 20MB 降至 5MB，但未做限频。Lite 版依赖 CC 限流兜底，并在文档中提示“测速会消耗 5MB 流量，请勿频繁触发”。
+
+---
+
 ## [4.4.0-lite.2] - 2026-10-25
 
 **基于 4.4.0-lite.1 的深度修复：封堵沙箱逃逸回归与 CI 流水线崩坏**

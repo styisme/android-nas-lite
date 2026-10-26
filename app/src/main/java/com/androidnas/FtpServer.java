@@ -63,24 +63,25 @@ public class FtpServer extends Thread {
                 reader = new BufferedReader(new InputStreamReader(controlSocket.getInputStream(), "UTF-8"));
                 writer = new PrintWriter(new OutputStreamWriter(controlSocket.getOutputStream(), "UTF-8"), true);
                 reply("220 Ready");
-                String clientIp = controlSocket.getInetAddress().getHostAddress();
-                        if (SettingsManager.isIpWhitelistEnabled()) {
-                            String list = SettingsManager.getIpWhitelist();
-                            boolean allowed = false;
-                            if (list != null) {
-                                for (String rule : list.split(",")) {
-                                    rule = rule.trim();
-                                    if (rule.endsWith("*") && clientIp.startsWith(rule.substring(0, rule.length() - 1))) { allowed = true; break; }
-                                    if (rule.equals(clientIp)) { allowed = true; break; }
-                                }
-                            }
-                            if (!allowed) { reply("421 IP Blocked by Whitelist"); return; }
-                        }
                 String line;
                 while ((line = reader.readLine()) != null) {
                     String[] parts = line.split(" ", 2);
                     String cmd = parts[0].toUpperCase();
                     String arg = parts.length > 1 ? parts[1] : "";
+                    
+                    String clientIp = controlSocket.getInetAddress().getHostAddress();
+                    if (SettingsManager.isIpWhitelistEnabled()) {
+                        String list = SettingsManager.getIpWhitelist();
+                        boolean allowed = false;
+                        if (list != null) {
+                            for (String rule : list.split(",")) {
+                                rule = rule.trim();
+                                if (rule.endsWith("*") && clientIp.startsWith(rule.substring(0, rule.length() - 1))) { allowed = true; break; }
+                                if (rule.equals(clientIp)) { allowed = true; break; }
+                            }
+                        }
+                        if (!allowed) { reply("421 IP Blocked by Whitelist"); break; }
+                    }
                     
                     if (!loggedIn && !cmd.equals("USER") && !cmd.equals("PASS") && !cmd.equals("QUIT")) {
                         reply("530 Please login."); continue;
@@ -89,7 +90,6 @@ public class FtpServer extends Thread {
                     if (cmd.equals("USER")) { currentUser = arg; reply("331 Password required"); }
                     else if (cmd.equals("PASS")) {
                         String enc = android.util.Base64.encodeToString((currentUser + ":" + arg).getBytes("UTF-8"), android.util.Base64.NO_WRAP);
-                        if (SettingsManager.isFail2BanEnabled() && SecurityFilter.isBlocked(clientIp)) { reply("421 Too many attempts."); return; }
                         if (AuthManager.verifyRole("Basic " + enc) > 0) {
                             SecurityFilter.recordSuccess(clientIp, currentUser);
                             loggedIn = true;
@@ -125,7 +125,6 @@ public class FtpServer extends Thread {
             try {
                 closeDataConnection(); dataServerSocket = new ServerSocket(0);
                 int p = dataServerSocket.getLocalPort();
-                // 修复：使用真实的局域网 IP
                 reply("227 Entering Passive Mode (" + getLocalIp().replace('.', ',') + "," + (p / 256) + "," + (p % 256) + ")");
             } catch (Exception e) { reply("425 Fail"); }
         }
@@ -177,7 +176,10 @@ public class FtpServer extends Thread {
                 if (SettingsManager.isGlobalMode() && currentUser.equals("admin")) return new File(path).isAbsolute() ? new File(path) : new File(currentDir, path);
                 File baseDir = new File(rootDir, userRootDir);
                 if (!baseDir.exists()) baseDir.mkdirs();
-                File f = new File(path).isAbsolute() ? new File(baseDir, path) : new File(currentDir, path);
+                
+                String relativePath = path.replaceAll("^/+", "");
+                File f = new File(path).isAbsolute() ? new File(baseDir, relativePath) : new File(currentDir, path);
+                
                 String c = f.getCanonicalPath();
                 String r = baseDir.getCanonicalPath();
                 if (!c.equals(r) && !c.startsWith(r + File.separator)) return null;

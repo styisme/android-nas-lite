@@ -52,4 +52,6 @@ android {
 
 dependencies {
     implementation 'org.nanohttpd:nanohttpd:2.2.0'
+    // 找回 SSH 核心库
+    // 新增远程控制所需的 WebSocket 库
 }
